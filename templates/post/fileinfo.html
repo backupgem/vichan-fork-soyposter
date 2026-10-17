@@ -6,8 +6,10 @@
 		<div class="file{% if post.num_files > 1 %} multifile" style="width:{{ file.thumbwidth + 40 }}px"{% else %}"{% endif %}>
 	{% if file.file == 'deleted' %}
 		<img class="post-image deleted" src="{{ config.root }}{{ config.image_deleted }}" alt="" />
+	{% elseif file.is_approved is defined and file.is_approved == false and not mod|hasPermission(config.mod.file_approval, board.uri) %}
+		<img class="post-image unapproved" src="{{ config.root }}{{ config.approval_image }}" alt="Media pending moderator approval" />
 	{% else %}
-		<p class="fileinfo"><span>File: <a href="{{ config.uri_img }}{{ file.file }}">{{ file.file }}</a></span><span class="unimportant">
+		<p class="fileinfo"><span>File: <a href="{{ config.uri_img }}{{ file.file }}">{{ file.file[0:8] }}.{{ file.file[-3:] }}</a></span>{% if file.is_approved is defined and file.is_approved == false %}<strong style="border: 2px solid red; color: red;font-size: 19px;">Unapproved</strong> {% endif %}<span class="unimportant">
 		(
 			{% if file.thumb == 'spoiler' %}
 				{% trans %}Spoiler Image{% endtrans %},
@@ -19,7 +21,8 @@
 					, {{ ratio(file.width, file.height) }}
 				{% endif %}
 			{% endif %}
-			{% if config.show_filename and file.filename %}
+			  
+			{% if config.show_filename and file.filename and post.mod|hasPermission(config.mod.view_filenames, board.uri) %}
 				, 
 				{% if file.thumb == 'spoiler' %}
 					<a href="{{ config.uri_img }}{{ file.file|e|bidi_cleanup }}" download="{{ file.filename|e|bidi_cleanup }}" title="{% trans %}Spoiler Image{% endtrans %}">{% trans %}Spoiler Image{% endtrans %}</a>

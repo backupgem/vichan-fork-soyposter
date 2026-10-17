@@ -1,3 +1,26 @@
 {% if post.mod and post.mod|hasPermission(config.mod.show_ip, board.uri) %}  
-	 [<a class="ip-link" style="margin:0;" href="?/IP/{{ post.ip|cloak_ip }}">{{ post.ip|cloak_ip }}</a>]
+	<a class="ip-link" style="margin:0; border-radius:3px; padding-left: 2px;padding-right: 2px; background-color: {{ ip_color_code(post.ip, 0) }}; color: {{white_or_black_color(post.ip, 0)}}; " href="?/IP/{{ post.ip|cloak_ip }}">{{ post.ip|cloak_ip }}</a> 
+{% if post.password %}
+	<a title="Posting password" style="margin:0; border-radius:3px; padding-left: 2px;padding-right: 2px; background-color: {{ ip_color_code(post.password, 0) }}; color: {{white_or_black_color(post.password, 0)}}; " href="?/PH/{{post.password}}">P:{{ post.password|slice(0, 8) }}</a> 
+{% endif %}
+{% if post.ua_hash %}
+	<span style="opacity:0.8;text-decoration:underline">[<a style="margin:0" href="?/search/posts/{{ post.ua_hash }}" title="UA Hash">{{ post.ua_hash|slice(0, 3) }}</a> 
+	<a style="margin:0" href="?/search/posts/{{ post.accept_language_hash }}" title="AL Hash">{{ post.accept_language_hash|slice(0, 3) }}</a>
+	{% if post.chrome_hash %} 
+	<a title="Chrome hash" style="margin:0" href="?/search/posts/{{ post.chrome_hash }}">C:{{ post.chrome_hash|slice(0, 3) }}</a>
+	{% endif %}
+	 <a style="margin:0" href="?/headers/{{ post.ua_hash }}/{{ post.accept_language_hash }}">+</a>
+]</span>{% endif %}
+{% if post.cf_ipcountry %}
+{# <abbr title="Country">({{ post.cf_ipcountry }})</abbr>#}
+ <img title="Country: {{ post.cf_ipcountry }}" src="/flag/{{ post.cf_ipcountry }}">
+{% endif %}
+{% if post.mod_id and post.mod|hasPermission(config.mod.usernames_on_posts) %}
+ <a class="fa fa-shield" style="margin:0;text-decoration: none;color: #00c500;background: #3a3a3a;border-radius: 2px;padding: 0px 3px;" href="?/new_PM/{{ post.mod_username }}" title="Staff: {{ post.mod_username|default("deleted") }}"></a>
+{% endif %}
+{% endif %}
+{% if config.show_country and not post.mod %}
+{% if post.cf_ipcountry %}
+ <img title="Country: {{ post.cf_ipcountry }}" src="/flag/{{ post.cf_ipcountry }}">
+{% endif %}
 {% endif %}
