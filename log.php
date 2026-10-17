@@ -1,4 +1,5 @@
 <?php
+die("no");
 require 'inc/bootstrap.php';
 
 if (!isset($_GET['board']) || !preg_match("/{$config['board_regex']}/u", $_GET['board'])) {

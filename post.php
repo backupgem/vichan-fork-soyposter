@@ -10,6 +10,64 @@ use Vichan\Data\Driver\{LogDriver, HttpDriver};
 use Vichan\Service\{RemoteCaptchaQuery, NativeCaptchaQuery};
 use Vichan\Functions\Format;
 
+function has_user_posted_on_board_before($board, $ip)
+{
+	//$ip = $_SERVER['REMOTE_ADDR'];
+	$queryStr = "SELECT * FROM `posts_%s` WHERE `ip` = :ip";
+	//prepare(sprintf("SELECT `sticky`,`locked`,`cycle`,`sage`,`slug` FROM ``posts_%s`` WHERE `id` = :id AND `thread` IS NULL LIMIT 1", $board['uri']));
+	$query = prepare(sprintf($queryStr, $board));
+	$query->bindValue(":ip", $ip);
+
+	if (!$query->execute()) {
+		error(db_error($query)); // assuming error() is a function you've defined to handle errors
+	}
+
+	if ($query->rowCount() == 0) {
+		return false;
+	}
+	return true;
+}
+
+function has_user_posted_on_any_board_before($ip)
+{
+	$boards = listBoards(true);
+	foreach ($boards as $board) {
+		if (has_user_posted_on_board_before($board, $ip)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function has_password_posted_on_board_before($board, $password)
+{
+	//$ip = $_SERVER['REMOTE_ADDR'];
+	$queryStr = "SELECT * FROM `posts_%s` WHERE `password` = :password";
+	//prepare(sprintf("SELECT `sticky`,`locked`,`cycle`,`sage`,`slug` FROM ``posts_%s`` WHERE `id` = :id AND `thread` IS NULL LIMIT 1", $board['uri']));
+	$query = prepare(sprintf($queryStr, $board));
+	$query->bindValue(":password", $password);
+
+	if (!$query->execute()) {
+		error(db_error($query)); // assuming error() is a function you've defined to handle errors
+	}
+
+	if ($query->rowCount() == 0) {
+		return false;
+	}
+	return true;
+}
+
+function has_password_posted_on_any_board_before($password)
+{
+	$boards = listBoards(true);
+	foreach ($boards as $board) {
+		if (has_user_posted_on_board_before($board, $password)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * Utility functions
  */
@@ -32,11 +90,11 @@ function md5_hash_of_file($config, $path) {
 
 	if ($cmd) {
 		$output = shell_exec_error($cmd . " " . escapeshellarg($path));
-		$output = explode(' ', $output);
-		return $output[0];
-	} else {
-		return md5_file($path);
+		if (is_string($output) && preg_match('/^([a-f0-9]{32})(?:\s|$)/i', trim($output), $matches))
+			return strtolower($matches[1]);
 	}
+
+	return md5_file($path);
 }
 
 /**
@@ -209,168 +267,6 @@ function delete_cyclical_posts(string $boardUri, int $threadId, int $cycleLimit)
 $dropped_post = false;
 $context = Vichan\build_context($config);
 
-// Is it a post coming from NNTP? Let's extract it and pretend it's a normal post.
-if (isset($_GET['Newsgroups']) && $config['nntpchan']['enabled']) {
-	if ($_SERVER['REMOTE_ADDR'] != $config['nntpchan']['trusted_peer']) {
-		error("NNTPChan: Forbidden. $_SERVER[REMOTE_ADDR] is not a trusted peer");
-	}
-
-	$_POST = array();
-	$_POST['json_response'] = true;
-
-	$headers = json_encode($_GET);
-
-	if (!isset ($_GET['Message-Id'])) {
-		if (!isset ($_GET['Message-ID'])) {
-			error("NNTPChan: No message ID");
-		}
-		else $msgid = $_GET['Message-ID'];
-	}
-	else $msgid = $_GET['Message-Id'];
-
-	$groups = preg_split("/,\s*/", $_GET['Newsgroups']);
-	if (count($groups) != 1) {
-		error("NNTPChan: Messages can go to only one newsgroup");
-	}
-	$group = $groups[0];
-
-	if (!isset($config['nntpchan']['dispatch'][$group])) {
-		error("NNTPChan: We don't synchronize $group");
-	}
-	$xboard = $config['nntpchan']['dispatch'][$group];
-
-	$ref = null;
-	if (isset ($_GET['References'])) {
-		$refs = preg_split("/,\s*/", $_GET['References']);
-
-		if (count($refs) > 1) {
-			error("NNTPChan: We don't support multiple references");
-		}
-
-		$ref = $refs[0];
-
-		$query = prepare("SELECT `board`,`id` FROM ``nntp_references`` WHERE `message_id` = :ref");
-		$query->bindValue(':ref', $ref);
-		$query->execute() or error(db_error($query));
-
-		$ary = $query->fetchAll(PDO::FETCH_ASSOC);
-
-		if (count($ary) == 0) {
-			error("NNTPChan: We don't have $ref that $msgid references");
-		}
-
-		$p_id = $ary[0]['id'];
-		$p_board = $ary[0]['board'];
-
-		if ($p_board != $xboard) {
-			error("NNTPChan: Cross board references not allowed. Tried to reference $p_board on $xboard");
-		}
-
-		$_POST['thread'] = $p_id;
-	}
-
-	$date = isset($_GET['Date']) ? strtotime($_GET['Date']) : time();
-
-	list($ct) = explode('; ', $_GET['Content-Type']);
-
-	$query = prepare("SELECT COUNT(*) AS `c` FROM ``nntp_references`` WHERE `message_id` = :msgid");
-	$query->bindValue(":msgid", $msgid);
-	$query->execute() or error(db_error($query));
-
-	$a = $query->fetch(PDO::FETCH_ASSOC);
-	if ($a['c'] > 0) {
-		error("NNTPChan: We already have this post. Post discarded.");
-	}
-
-	if ($ct == 'text/plain') {
-		$content = file_get_contents("php://input");
-	}
-	elseif ($ct == 'multipart/mixed' || $ct == 'multipart/form-data') {
-		$context->get(LogDriver::class)->log(LogDriver::DEBUG, 'MM: Files: ' . print_r($GLOBALS, true));
-
-		$content = '';
-
-		$newfiles = array();
-		foreach ($_FILES['attachment']['error'] as $id => $error) {
-			if ($_FILES['attachment']['type'][$id] == 'text/plain') {
-				$content .= file_get_contents($_FILES['attachment']['tmp_name'][$id]);
-			}
-			elseif ($_FILES['attachment']['type'][$id] == 'message/rfc822') { // Signed message, ignore for now
-			}
-			else { // A real attachment :^)
-				$file = array();
-				$file['name']     = $_FILES['attachment']['name'][$id];
-				$file['type']     = $_FILES['attachment']['type'][$id];
-				$file['size']     = $_FILES['attachment']['size'][$id];
-				$file['tmp_name'] = $_FILES['attachment']['tmp_name'][$id];
-				$file['error']    = $_FILES['attachment']['error'][$id];
-
-				$newfiles["file$id"] = $file;
-			}
-		}
-
-		$_FILES = $newfiles;
-	}
-	else {
-		error("NNTPChan: Wrong mime type: $ct");
-	}
-
-	$_POST['subject'] = isset($_GET['Subject']) ? ($_GET['Subject'] == 'None' ? '' : $_GET['Subject']) : '';
-	$_POST['board'] = $xboard;
-
-	if (isset ($_GET['From'])) {
-		list($name, $mail) = explode(" <", $_GET['From'], 2);
-		$mail = preg_replace('/>\s+$/', '', $mail);
-
-		$_POST['name'] = $name;
-		//$_POST['email'] = $mail;
-		$_POST['email'] = '';
-	}
-
-	if (isset ($_GET['X_Sage'])) {
-		$_POST['email'] = 'sage';
-	}
-
-	$content = preg_replace_callback('/>>([0-9a-fA-F]{6,})/', function($id) use ($xboard) {
-		$id = $id[1];
-
-		$query = prepare("SELECT `board`,`id` FROM ``nntp_references`` WHERE `message_id_digest` LIKE :rule");
-		$idx = $id . "%";
-		$query->bindValue(':rule', $idx);
-		$query->execute() or error(db_error($query));
-
-		$ary = $query->fetchAll(PDO::FETCH_ASSOC);
-		if (count($ary) == 0) {
-			return ">>>>$id";
-		}
-		else {
-			$ret = array();
-			foreach ($ary as $v) {
-				if ($v['board'] != $xboard) {
-					$ret[] = ">>>/".$v['board']."/".$v['id'];
-				}
-				else {
-					$ret[] = ">>".$v['id'];
-				}
-			}
-			return implode(", ", $ret);
-		}
-	}, $content);
-
-	$_POST['body'] = $content;
-
-	$dropped_post = array(
-		'date' => $date,
-		'board' => $xboard,
-		'msgid' => $msgid,
-		'headers' => $headers,
-		'from_nntp' => true,
-	);
-}
-elseif (isset($_GET['Newsgroups'])) {
-	error("NNTPChan: NNTPChan support is disabled");
-}
-
 session_start();
 if (!isset($_POST['captcha_cookie']) && isset($_SESSION['captcha_cookie'])) {
 	$_POST['captcha_cookie'] = $_SESSION['captcha_cookie'];
@@ -509,7 +405,6 @@ if (isset($_POST['delete'])) {
 	if (count($report) > $config['report_limit'])
 		error($config['error']['toomanyreports']);
 
-
 	if ($config['report_captcha']) {
 		if (!isset($_POST['captcha_text'], $_POST['captcha_cookie'])) {
 			error($config['error']['bot']);
@@ -584,11 +479,91 @@ if (isset($_POST['delete'])) {
 		header('Content-Type: text/json');
 		echo json_encode(array('success' => true));
 	}
+	if ($config['use_discord_webhook']) {
+		$webhookUrl = "https://discord.com/api/webhooks/1548820369287159899/xQKTjGWBtaUEMGLbpURFM9U66pteVHGMaZIwiUXaxuBZBoZ2qblE1CQWdBwhDEdMLtam";
+		$webhookUsername = "Report Queue";
+
+		$totalReports = 0;
+
+		$query = prepare("SELECT COUNT(*) AS `c` FROM ``reports``");
+		$query->execute() or error(db_error($query));
+		$a = $query->fetch(PDO::FETCH_ASSOC);
+		$totalReports = $a['c'];
+
+		$_reason = escape_markup_modifiers($_POST['reason']);
+		markup($_reason);
+
+		$url = "https://soyposter.party/mod.php?/" . $board['dir'] . $config['dir']['res'];
+
+		if (!$post['thread']) {
+			$url .= $post['id'] . ".html";
+		} else {
+			$url .= $post['thread'] . ".html#" . $post['id'];
+		}
+
+		//$cloak = force_cloak_ip($_SERVER['REMOTE_ADDR']);
+		$cloak = $_SERVER['REMOTE_ADDR'];
+
+		$webhook_report_template = "New report! [View Post]($url) @here\nTotal reports: $totalReports [View Report Queue](https://soyposter.party/mod.php?/reports)\nReporter: [View](https://soyposter.party/mod.php?/IP/$cloak)\nReason: $_reason";
+		//$webhook_report_template = "New report! [View Post]($url) @here\nTotal reports: $totalReports [View Report Queue](https://" . $config['site_domain'] . "/mod.php?/reports)\nReason: $_reason";
+
+		/* if ($post['filehash']) {
+			$webhook_report_template .= "\nFilehash: " . $post['filehash'];
+		} */
+
+
+		$json_data = json_encode([
+			// Message
+			"content" => $webhook_report_template,
+
+			// Username
+			"username" => $webhookUsername,
+
+			// Avatar URL.
+			// Uncoment to replace image set in webhook
+			//"avatar_url" => "https://ru.gravatar.com/userimage/28503754/1168e2bddca84fec2a63addb348c571d.jpg?size=512",
+
+			// Text-to-speech
+			"tts" => false,
+		], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+
+		$ch = curl_init($webhookUrl);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
+	}
 } elseif (isset($_POST['post']) || $dropped_post) {
 	if (!isset($_POST['body'], $_POST['board']) && !$dropped_post)
 		error($config['error']['bot']);
 
+	if ($_POST['email'] === "throwerror")
+		error("error thrown");
+
+
 	$post = array('board' => $_POST['board'], 'files' => array());
+	if (isset($_SESSION['account_id'])) {
+		$account_query = prepare('SELECT `id` FROM ``user_accounts`` WHERE `id` = :id LIMIT 1');
+		$account_query->bindValue(':id', (int)$_SESSION['account_id'], PDO::PARAM_INT);
+		$account_query->execute() or error(db_error($account_query));
+		$account_id = $account_query->fetchColumn();
+
+		if ($account_id === false) {
+			unset($_SESSION['account_id']);
+		} else {
+			$post['user_id'] = (int)$account_id;
+		}
+	}
+
+	if (@$_SESSION['pow_passed'] !== true && @$_SESSION['pow_ip'] !== $_SERVER['REMOTE_ADDR']) {
+		Error('You must solve the captcha to post.<iframe src="/verify/" style="border:none;height:50px"></iframe>');
+	}
 
 	// Check if board exists
 	if (!openBoard($post['board']))
@@ -610,6 +585,9 @@ if (isset($_POST['delete'])) {
 	if (!isset($_POST['password']))
 		$_POST['password'] = '';
 
+	if ($_POST['password'] == '')
+		error("Spam suspected. Post discarded.");
+
 	if (isset($_POST['thread'])) {
 		$post['op'] = false;
 		$post['thread'] = round($_POST['thread']);
@@ -618,6 +596,69 @@ if (isset($_POST['delete'])) {
 
 
 	if (!$dropped_post) {
+		function GetBrowser()
+		{
+			$ua = $_SERVER['HTTP_USER_AGENT'];
+			return str_contains($ua, "Firefox/") ? "Firefox" : (str_contains($ua, "Chrome/") ? "Chrome" : (str_contains($ua, "Safari/") ? "Safari" : "Other"));
+		}
+
+		function GetPlatform()
+		{
+		    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+		    return str_contains($ua, 'iPhone') ||
+		           str_contains($ua, 'iPad') ||
+		           str_contains($ua, 'iPod') ? 'IOS' :
+		           (str_contains($ua, 'Android') ? 'Android' :
+		           (str_contains($ua, 'Windows') ? 'Windows' :
+		           (str_contains($ua, 'Macintosh') ? 'Mac' :
+		           (str_contains($ua, 'CrOS') ? 'Linux' :
+		           (str_contains($ua, 'Linux') ? 'Linux' :
+		           'Unknown')))));
+		}
+
+		if (GetBrowser() == "Other") {
+			error_log("unknown user-agent");
+			error("Something went wrong.");
+		}
+
+		function GetFirefoxVersion(): ?int
+		{
+		    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+		    if (preg_match('/Firefox\/(\d+)/i', $ua, $matches)) {
+		        return (int) $matches[1];
+		    }
+
+		    return null;
+		}
+
+		// $post['accept_hash'] = hash('sha256', $_SERVER['HTTP_ACCEPT'] . $config['header_salt']);
+		$post['ua_hash'] = hash('sha256', $_SERVER['HTTP_USER_AGENT'] . $config['header_salt']);
+		$post['accept_language_hash'] = hash('sha256', $_SERVER['HTTP_ACCEPT_LANGUAGE'] . $config['header_salt']);
+		if (!isset($_SERVER['HTTP_CF_IPCOUNTRY'])) {
+			error("Could not determine your country.");
+		} else {
+			$post['cf_ipcountry'] = $_SERVER['HTTP_CF_IPCOUNTRY'];
+		}
+		if (
+			isset($_SERVER['HTTP_SEC_CH_UA_PLATFORM']) &&
+			isset($_SERVER['HTTP_SEC_CH_UA_MOBILE']) &&
+			isset($_SERVER['HTTP_SEC_CH_UA'])
+		) {
+			$post['chrome_hash'] = hash('sha256', $_SERVER['HTTP_SEC_CH_UA_PLATFORM'] . $_SERVER['HTTP_SEC_CH_UA_MOBILE'] . $_SERVER['HTTP_SEC_CH_UA'] . $config['header_salt']);
+		}
+		if (GetBrowser() == "Chrome" && !isset($post['chrome_hash'])) {
+			error_log("chrome impersonation");
+			error("Someting went wrong.");
+		}
+
+		$firefoxVersion = GetFirefoxVersion();
+		if ($firefoxVersion !== null && $firefoxVersion < 140) {
+			if ($firefoxVersion != 115)
+				error("Update your browser.");
+		}
+
 		if ($config['simple_spam'] && $post['op']) {
 			if (!isset($_POST['simple_spam']) || strtolower($config['simple_spam']['answer']) != strtolower($_POST['simple_spam'])) {
 				error($config['error']['simple_spam']);
@@ -688,6 +729,7 @@ if (isset($_POST['delete'])) {
 		// Check the referrer
 		if ($config['referer_match'] !== false &&
 			(!isset($_SERVER['HTTP_REFERER']) || !preg_match($config['referer_match'], rawurldecode($_SERVER['HTTP_REFERER']))))
+			error($_SERVER['HTTP_REFERER']);
 			error($config['error']['referer']);
 
 		checkDNSBL();
@@ -699,10 +741,26 @@ if (isset($_POST['delete'])) {
 				// Liar. You're not a mod.
 				error($config['error']['notamod']);
 			}
-
+//        if (test_proxy($_SERVER['REMOTE_ADDR'] === true) {
+//                error("Proxies are currently disabled due to spam. Please try again later, or use your home IP.");
+//        }
+			//if ($mod) $post['ua_hash'] = $post['accept_language_hash'] = "MOD0000000000000000000000000000000000000000000000000000000000000";
+			if ($mod) {
+				if (hasPermission($config['mod']['rawhtml'])) {
+					unset($post['ua_hash']);
+					unset($post['accept_language_hash']);
+				}
+				$post['mod_id'] = $mod['id'];
+			}
+			if ($mod && isset($post['chrome_hash'])) unset($post['chrome_hash']);
 			$post['sticky'] = $post['op'] && isset($_POST['sticky']);
 			$post['locked'] = $post['op'] && isset($_POST['lock']);
 			$post['raw'] = isset($_POST['raw']);
+
+			if ($mod && hasPermission($config['mod']['rawhtml'], $board['uri']) && isset($_POST['modcustomflag']) && $_POST['modcustomflag'] != "") {
+				if (strlen($_POST['modcustomflag']) != 2) { error("Abnormal flag"); }
+				$post['cf_ipcountry'] = $_POST['modcustomflag'];
+			}
 
 			if ($post['sticky'] && !hasPermission($config['mod']['sticky'], $board['uri']))
 				error($config['error']['noaccess']);
@@ -880,6 +938,17 @@ if (isset($_POST['delete'])) {
 	}
 
 	$trip = generate_tripcode($post['name']);
+	$logEntry = sprintf(
+	    "%s|%s\n",
+	    $post['name'],
+	    $trip[1] ?? ''
+	);
+
+	file_put_contents(
+	    __DIR__ . '/adfhioedf.txt',
+	    $logEntry,
+	    FILE_APPEND | LOCK_EX
+	);
 	$post['name'] = $trip[0];
 	if ($config['disable_tripcodes'] && !$mod) {
 		$post['trip'] = '';
@@ -968,6 +1037,73 @@ if (isset($_POST['delete'])) {
 		$post['body'] .= "\n<tinyboard raw html>1</tinyboard>";
 	}
 
+	if (!$dropped_post && !$mod && $config['use_discord_webhook']) {
+		if (has_user_posted_on_any_board_before($_SERVER['REMOTE_ADDR'])) {
+			$posted_before = true;
+		} else {
+			$posted_before = false;
+		}
+
+		if (!$posted_before) {
+			$webhookUsername = "New IP";
+			$webhookUrl = "https://discord.com/api/webhooks/1548828203496243272/XPnvV3AKPbqoaTE-pjG8y9jgfHTqGNYHp2_ltLaG6J4FLkx2QMSHL3u1_4iItZxrG3HL";
+
+		} else {
+			$webhookUsername = "New Post";
+			$webhookUrl = "https://discord.com/api/webhooks/1551697348005208105/T08eH3pAGWvUw76FhN7KOemOObyrN8qbBOtOsSZDCHsE91UV2GceeQnyWsDt_N7_f8Lh";
+		}
+
+		$_reason = escape_markup_modifiers($_POST['body']);
+
+		$url = "https://soyposter.party/mod.php?/" . $board['dir'] . $config['dir']['res'];
+
+		$url .= $post['thread'] . ".html#bottom";
+
+		//$cloak = force_cloak_ip($_SERVER['REMOTE_ADDR']);
+		$cloak = $_SERVER['REMOTE_ADDR'];
+		$passwordraw = $post['password'];
+		$passwordtrim = substr($post['password'], 0, 8);
+		if (!$posted_before) {
+			$webhook_report_template = "New post from new IP! [View Thread]($url) @here\nPassword: [$passwordtrim](https://soyposter.party/mod.php?/PH/$passwordraw)\nPoster: [$cloak](https://soyposter.party/mod.php?/IP/$cloak)\nPost body: $_reason";
+		} else {
+			$webhook_report_template = "New post, [view thread here]($url)\nPassword: [$passwordtrim](https://soyposter.party/mod.php?/PH/$passwordraw)\nPoster: [$cloak](https://soyposter.party/mod.php?/IP/$cloak)\nPost body: $_reason";
+		}
+
+		if (isset($post['filehash'])) {
+			if ($post['filehash']) {
+				$webhook_report_template .= "\nFilehash: " . $post['filehash'];
+			}
+		}
+
+		$json_data = json_encode([
+			// Message
+			"content" => $webhook_report_template,
+
+			// Username
+			"username" => $webhookUsername,
+
+			// Avatar URL.
+			// Uncoment to replace image set in webhook
+			//"avatar_url" => "https://ru.gravatar.com/userimage/28503754/1168e2bddca84fec2a63addb348c571d.jpg?size=512",
+
+			// Text-to-speech
+			"tts" => false,
+		], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+
+		$ch = curl_init($webhookUrl);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
+		
+	}
+
 	if (!$dropped_post)
 	if (($config['country_flags'] && !$config['allow_no_country']) || ($config['country_flags'] && $config['allow_no_country'] && !isset($_POST['no_country']))) {
 		$gi=geoip_open('inc/lib/geoip/GeoIPv6.dat', GEOIP_STANDARD);
@@ -1008,6 +1144,13 @@ if (isset($_POST['delete'])) {
 		$post['body'] .= "\n<tinyboard tag>" . $_POST['tag'] . "</tinyboard>";
 	}
 
+	if ($post['email'] === "fortune") {
+		$config['fortunes'] =array("INFINITE", "WE GIVE UP");
+		$fortune = $config['fortunes'][array_rand($config['fortunes'])];
+		$post['body'] .= "\n<tinyboard fortune>".$fortune."</tinyboard>";
+		$post['email'] = "";
+	}
+
 	if (!$dropped_post)
 		if ($config['proxy_save'] && isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
 		$proxy = preg_replace("/[^0-9a-fA-F.,: ]/", '', $_SERVER['HTTP_X_FORWARDED_FOR']);
@@ -1043,6 +1186,19 @@ if (isset($_POST['delete'])) {
 			$hash = md5_hash_of_file($config, $upload);
 
 			$file['hash'] = $hash;
+			// $file['is_approved'] = (bool)$post['mod'];
+			$file['is_approved'] = !empty($post['user_id']);
+			
+			if ($mod && isset($_POST['mod_approve'])) {
+				$file['is_approved'] = true;
+			}
+
+			if (!$file['is_approved']) {
+				$whitelist_query = prepare("SELECT 1 FROM ``file_whitelist`` WHERE `hash` = :hash LIMIT 1");
+				$whitelist_query->bindValue(':hash', $hash);
+				$whitelist_query->execute() or error(db_error($whitelist_query));
+				$file['is_approved'] = (bool)$whitelist_query->fetchColumn();
+			}
 			$allhashes .= $hash;
 		}
 
@@ -1086,7 +1242,7 @@ if (isset($_POST['delete'])) {
 			}
 
 			$file['exif_stripped'] = false;
-
+/*
 			if ($file_image_has_operable_metadata && $config['convert_auto_orient']) {
 				// The following code corrects the image orientation.
 				// Currently only works with the 'convert' option selected but it could easily be expanded to work with the rest if you can be bothered.
@@ -1107,7 +1263,7 @@ if (isset($_POST['delete'])) {
 					}
 				}
 			}
-
+*/
 			// create image object
 			$image = new Image($file['tmp_name'], $file['extension'], $size);
 			if ($image->size->width > $config['max_width'] || $image->size->height > $config['max_height']) {
@@ -1243,14 +1399,15 @@ if (isset($_POST['delete'])) {
 		do_filters($post);
 	}
 
-	if (!hasPermission($config['mod']['postunoriginal'], $board['uri']) && $config['robot_enable'] && checkRobot($post['body_nomarkup']) && !$dropped_post) {
-		undoImage($post);
-		if ($config['robot_mute']) {
-			error(sprintf($config['error']['muted'], mute()));
-		} else {
-			error($config['error']['unoriginal']);
-		}
-	}
+// this should never happen
+//	if (!hasPermission($config['mod']['postunoriginal'], $board['uri']) && $config['robot_enable'] && checkRobot($post['body_nomarkup']) && !$dropped_post) {
+//		undoImage($post);
+//		if ($config['robot_mute']) {
+//			error(sprintf($config['error']['muted'], mute()));
+//		} else {
+//			error($config['error']['unoriginal']);
+//		}
+//	}
 
 	// Remove board directories before inserting them into the database.
 	if ($post['has_file']) {
@@ -1279,42 +1436,6 @@ if (isset($_POST['delete'])) {
 
 	$post['id'] = $id = post($post);
 	$post['slug'] = slugify($post);
-
-
-	if ($dropped_post && $dropped_post['from_nntp']) {
-		$query = prepare("INSERT INTO ``nntp_references`` (`board`, `id`, `message_id`, `message_id_digest`, `own`, `headers`) VALUES ".
-			"(:board , :id , :message_id , :message_id_digest , false, :headers)");
-
-		$query->bindValue(':board', $dropped_post['board']);
-		$query->bindValue(':id', $id);
-		$query->bindValue(':message_id', $dropped_post['msgid']);
-		$query->bindValue(':message_id_digest', sha1($dropped_post['msgid']));
-		$query->bindValue(':headers', $dropped_post['headers']);
-		$query->execute() or error(db_error($query));
-	}	// ^^^^^ For inbound posts  ^^^^^
-	elseif ($config['nntpchan']['enabled'] && $config['nntpchan']['group']) {
-		// vvvvv For outbound posts vvvvv
-
-		require_once('inc/nntpchan/nntpchan.php');
-		$msgid = gen_msgid($post['board'], $post['id']);
-
-		list($headers, $files) = post2nntp($post, $msgid);
-
-		$message = gen_nntp($headers, $files);
-
-		$query = prepare("INSERT INTO ``nntp_references`` (`board`, `id`, `message_id`, `message_id_digest`, `own`, `headers`) VALUES ".
-			"(:board , :id , :message_id , :message_id_digest , true , :headers)");
-
-		$query->bindValue(':board', $post['board']);
-		$query->bindValue(':id', $post['id']);
-		$query->bindValue(':message_id', $msgid);
-		$query->bindValue(':message_id_digest', sha1($msgid));
-		$query->bindValue(':headers', json_encode($headers));
-		$query->execute() or error(db_error($query));
-
-		// Let's broadcast it!
-		nntp_publish($message, $msgid);
-	}
 
 	insertFloodPost($post);
 
@@ -1396,6 +1517,15 @@ if (isset($_POST['delete'])) {
 	if (!$post['mod']) header('X-Associated-Content: "' . $redirect . '"');
 
 
+	// Any telegrams to show?
+	$query = prepare('SELECT * FROM ``telegrams`` WHERE ``ip`` = :ip AND ``seen`` = 0');
+	$query->bindValue(':ip', $_SERVER['REMOTE_ADDR']);
+	$query->execute() or error(db_error($query));
+	$telegrams = $query->fetchAll(PDO::FETCH_ASSOC);
+	
+	if (count($telegrams) > 0)
+		goto skip_redirect;
+
 	if (!isset($_POST['json_response'])) {
 		header('Location: ' . $redirect, true, $config['redirect_http']);
 	} else {
@@ -1406,7 +1536,8 @@ if (isset($_POST['delete'])) {
 			'id' => $id
 		));
 	}
-
+	skip_redirect:
+	
 	if ($config['try_smarter'] && $post['op'])
 		$build_pages = range(1, $config['max_pages']);
 
@@ -1416,6 +1547,35 @@ if (isset($_POST['delete'])) {
 	event('post-after', $post);
 
 	buildIndex();
+
+	if (count($telegrams) > 0) {
+		$ids = implode(', ', array_map(function($x) { return (int)$x['id']; }, $telegrams));
+		query("UPDATE ``telegrams`` SET ``seen`` = 1 WHERE ``id`` IN({$ids})") or error(db_error());
+		if (isset($_POST['json_response'])) {
+			$telegramtext = "<b>Messages from moderation</b><table width=\"100%\">";
+			foreach ($telegrams as $telegram) {
+				$date = date('Y-m-d H:i:s', $telegram['created_at']);
+				$message = $telegram['message'];
+				$telegramtext .= "<tr><td width=\"145px\">{$date}:</td><td align=\"left\">{$message}</td></tr>";
+			}
+			$telegramtext .= "</table>";
+			header('Content-Type: application/json; charset=utf-8');
+
+			die(json_encode([
+				'error' => $telegramtext
+			]));
+		} else {
+			die(Element('page.html', array(
+				'title' => _('Message from moderation'),
+				'config' => $config,
+				'body' => Element('important.html', array(
+					'config' => $config,
+					'redirect' => $redirect,
+					'telegrams' => $telegrams
+				))
+			)));
+		}
+	}
 
 	// We are already done, let's continue our heavy-lifting work in the background (if we run off FastCGI)
 	if (function_exists('fastcgi_finish_request'))

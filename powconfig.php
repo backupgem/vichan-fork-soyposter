@@ -1,0 +1,4 @@
+<?php
+$difficulty = 3;
+
+?>

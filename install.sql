@@ -58,6 +58,37 @@ CREATE TABLE IF NOT EXISTS `bans` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `file_approval`
+--
+
+CREATE TABLE IF NOT EXISTS `file_approval` (
+  `board` varchar(58) NOT NULL,
+  `postid` int(11) NOT NULL,
+  `hash` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `file` varchar(255) NOT NULL,
+  `thumb` varchar(255) DEFAULT NULL,
+  `time` int(11) NOT NULL,
+  PRIMARY KEY (`board`,`postid`,`hash`),
+  KEY `hash` (`hash`),
+  KEY `file_approval_time` (`time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `file_whitelist`
+--
+
+CREATE TABLE IF NOT EXISTS `file_whitelist` (
+  `hash` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `modid` int(10) NOT NULL,
+  `time` int(11) NOT NULL,
+  PRIMARY KEY (`hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `boards`
 --
 
@@ -146,6 +177,18 @@ CREATE TABLE IF NOT EXISTS `mods` (
 
 INSERT INTO `mods` VALUES
 (1, 'admin', 'cedad442efeef7112fed0f50b011b2b9bf83f6898082f995f69dd7865ca19fb7', '4a44c6c55df862ae901b413feecb0d49', 30, '*');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_accounts`
+--
+
+CREATE TABLE IF NOT EXISTS `user_accounts` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `password` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;
 
 -- --------------------------------------------------------
 
@@ -318,24 +361,6 @@ CREATE TABLE IF NOT EXISTS `pages` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `nntp_references`
---
-
-CREATE TABLE IF NOT EXISTS `nntp_references` (
-  `board` varchar(30) NOT NULL,
-  `id` int(11) unsigned NOT NULL,
-  `message_id` varchar(255) CHARACTER SET ascii NOT NULL,
-  `message_id_digest` varchar(40) CHARACTER SET ascii NOT NULL,
-  `own` tinyint(1) NOT NULL,
-  `headers` text,
-  PRIMARY KEY (`message_id_digest`),
-  UNIQUE KEY `message_id` (`message_id`),
-  UNIQUE KEY `u_board_id` (`board`, `id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `captchas`
 --
 
@@ -347,8 +372,22 @@ CREATE TABLE IF NOT EXISTS `captchas` (
   PRIMARY KEY (`cookie`,`extra`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `telegrams`
+--
+
+CREATE TABLE IF NOT EXISTS `telegrams` (
+    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `mod_id` int(11) unsigned NOT NULL,
+    `ip` varchar(39) CHARACTER SET ascii NOT NULL,
+    `message` text NOT NULL,
+    `seen` tinyint(1) NOT NULL DEFAULT FALSE,
+    `created_at` INT(11),
+    PRIMARY KEY(`id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8mb4;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-

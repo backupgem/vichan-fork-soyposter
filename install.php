@@ -1,7 +1,6 @@
 <?php
-
 // Installation/upgrade file
-define('VERSION', '5.2.2');
+define('VERSION', '5.1.9');
 require 'inc/bootstrap.php';
 loadConfig();
 
@@ -635,6 +634,62 @@ if (file_exists($config['has_installed'])) {
 			  	`created_at` int(11),
 			  	PRIMARY KEY (`cookie`,`extra`)
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;') or error(db_error());
+		case '5.1.4':
+			query('CREATE TABLE IF NOT EXISTS `telegrams` (
+				`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+				`mod_id` int(11) unsigned NOT NULL,
+				`ip` varchar(39) CHARACTER SET ascii NOT NULL,
+				`message` text NOT NULL,
+				`seen` tinyint(1) NOT NULL DEFAULT FALSE,
+				`created_at` INT(11),
+				PRIMARY KEY(`id`)
+			) ENGINE=MyISAM  DEFAULT CHARSET=utf8mb4;') or error(db_error());
+		case '5.1.5':
+			foreach ($boards as &$board) {
+			    query(sprintf(
+			        'ALTER TABLE `posts_%s`
+			         ADD `accept_hash` VARCHAR(64) DEFAULT NULL,
+			         ADD `ua_hash` VARCHAR(64) DEFAULT NULL,
+			         ADD `accept_language_hash` VARCHAR(64) DEFAULT NULL;',
+			        $board['uri']
+			    )) or error(db_error());
+			}
+		case '5.1.6':
+			foreach ($boards as &$board) {
+			    query(sprintf(
+			        'ALTER TABLE `posts_%s`
+			         ADD `cf_ipcountry` CHAR(2) DEFAULT NULL;',
+			        $board['uri']
+			    )) or error(db_error());
+			}
+		case '5.1.7':
+                        foreach ($boards as &$board) {
+                            query(sprintf(
+                                'ALTER TABLE `posts_%s`
+                                 ADD `chrome_hash` VARCHAR(64) DEFAULT NULL;',
+                                $board['uri']
+                            )) or error(db_error());
+                        }
+			foreach ($boards as &$board) {
+				query(sprintf(
+					'ALTER TABLE `posts_%s`
+					ADD `mod_id` INT(11) DEFAULT NULL;',
+					$board['uri']
+				)) or error(db_error());
+			}
+		case '5.1.8':
+			foreach ($boards as &$board) {
+				query(sprintf(
+					'ALTER TABLE ``posts_%s``
+					ADD `user_id` INT(10) UNSIGNED DEFAULT NULL;',
+					$board['uri']
+				)) or error(db_error());
+			}
+			query('CREATE TABLE IF NOT EXISTS ``user_accounts`` (
+				`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+				`password` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+				PRIMARY KEY (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;') or error(db_error());
 		case false:
 			// TODO: enhance Tinyboard -> vichan upgrade path.
 			query("CREATE TABLE IF NOT EXISTS ``search_queries`` (  `ip` varchar(39) NOT NULL,  `time` int(11) NOT NULL,  `query` text NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8;") or error(db_error());
@@ -731,10 +786,10 @@ if ($step == 0) {
 	$tests = array(
 		array(
 			'category' => 'PHP',
-			'name' => 'PHP &ge; 7.4',
-			'result' => PHP_VERSION_ID >= 50400,
+			'name' => 'PHP &ge; 8.2',
+			'result' => PHP_VERSION_ID >= 80200,
 			'required' => true,
-			'message' => 'vichan requires PHP 7.4 or better.',
+			'message' => 'vichan requires PHP 8.2 or better.',
 		),
 		array(
 			'category' => 'PHP',
@@ -1021,6 +1076,8 @@ if ($step == 0) {
 
 	$sql = @file_get_contents('install.sql') or error("Couldn't load install.sql.");
 
+	// Windows compatibility
+	$sql = str_replace(["\r\n", "\r"], "\n", $sql);
 	sql_open();
 	$mysql_version = mysql_version();
 

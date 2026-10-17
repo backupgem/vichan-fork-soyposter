@@ -28,10 +28,14 @@ $pages = [
 	'/users/(\d+)/(promote|demote)'		=> 'secure user_promote',	// prmote/demote user
 	'/users/(\d+)'				=> 'secure_POST user',		// edit user
 	'/users/new'				=> 'secure_POST user_new',	// create a new user
+	'/accounts'				=> 'account_list',		// manage standalone user accounts
+	'/accounts/new'				=> 'secure_POST account_new',	// create standalone user account
+	'/accounts/delete/(\d+)'		=> 'secure_POST account_delete',	// delete standalone user account
 
 	'/new_PM/([^/]+)'			=> 'secure_POST new_pm',	// create a new pm
 	'/PM/(\d+)(/reply)?'			=> 'pm',			// read a pm
 	'/inbox'				=> 'inbox',			// pm inbox
+	'/outbox'				=> 'outbox',		// pm outbox
 
 	'/log'					=> 'log',			// modlog
 	'/log/(\d+)'				=> 'log',			// modlog
@@ -39,6 +43,9 @@ $pages = [
 	'/log:([^/:]+)/(\d+)'			=> 'user_log',			// modlog
 	'/log:b:([^/]+)'			=> 'board_log',			// modlog
 	'/log:b:([^/]+)/(\d+)'			=> 'board_log',			// modlog
+
+	'/userlog'				=> 'userlog',
+	'/ipdetails/([\w.:]+)'			=> 'ipdetails',
 
 	'/edit_news'				=> 'secure_POST news',		// view news
 	'/edit_news/(\d+)'			=> 'secure_POST news',		// view news
@@ -59,15 +66,27 @@ $pages = [
 	'/rebuild'				=> 'secure_POST rebuild',	// rebuild static files
 	'/reports'				=> 'reports',			// report queue
 	'/reports/(\d+)/dismiss(&all|&post)?'		=> 'secure report_dismiss',	// dismiss a report
+	'/file_approval'			=> 'file_approval',		// media approval queue
+	'/approve-file/([a-f0-9]{32})'		=> 'secure approve_file_approval',
+	'/reject-file/([a-f0-9]{32})'		=> 'secure reject_file_approval',
 
 	'/IP/([\w.:]+)'				=> 'secure_POST ip',		// view ip address
 	'/IP/([\w.:]+)/remove_note/(\d+)'	=> 'secure ip_remove_note',	// remove note from ip address
+	'/IP/([\w.:-]+)/remove_telegram/(\d+)'	=> 'secure ip_remove_telegram',	// remove telegram from ip address
+
+	'/ALH/([\w.:]+)'			=> 'secure_POST alh',            // view ip address
+	'/AH/([\w.:]+)'                        => 'secure_POST ah',            // view ip address
+	'/UAH/([\w.:]+)'                        => 'secure_POST uah',            // view ip address
+	'/CH/([\w.:]+)'				=> 'secure_POST ch',		// chrome header hash
+	'/headers/([\w.:]+)/([\w.:]+)'		=> 'secure_POST header_search',
+	'/PH/([\w.:]+)'				=> 'secure_POST ph',
 
 	'/ban'					=> 'secure_POST ban',		// new ban
 	'/bans'					=> 'secure_POST bans',		// ban list
 	'/bans.json'				=> 'secure bans_json',		// ban list JSON
 	'/edit_ban/(\d+)'			=> 'secure_POST edit_ban',
 	'/ban-appeals'				=> 'secure_POST ban_appeals',	// view ban appeals
+	'/trash'				=> 'secure_POST trash',		// trash
 
 	'/recent/(\d+)'				=> 'recent_posts',		// view recent posts
 
@@ -95,6 +114,8 @@ $pages = [
 
 	'/config'				=> 'secure_POST config',	// config editor
 	'/config/(\%b)'				=> 'secure_POST config',	// config editor
+
+	'/ajax/post/(\%b)/(\d+)'		=> 'ajax_render_post',
 
 	// these pages aren't listed in the dashboard without $config['debug']
 	//'/debug/antispam'			=> 'debug_antispam',
