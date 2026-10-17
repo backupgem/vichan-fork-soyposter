@@ -1,24 +1,58 @@
+/* steal quote's ideas for nusoi to make shit easier */
+:root {
+  /* background shit */
+  --background-top: #D1D5EE;
+  --background-color: #EEF2FF;
+  /* posting */
+  --font-color: #000000;
+  --link-color: #34345C;
+  --link-hover-color: #FF0000;
+  --board-title-color: #AF0A0F;
+  --board-title-hover: #930F14;
+  --post-background-color: #D6DAF0;
+  --post-highlighted-background-color: #D6BAD0;
+  /* these are connected, only kept to make shit easier */
+  --post-border-color: color-mix(var(--post-background-color), black 20%);
+  --post-highlighted-border-color: color-mix(var(--post-highlighted-background-color), black 20%);
+  --post-reply-link: #DD0000;
+  --post-name-color: #117743;
+  --post-subject-color: #0F0C5D;
+  --default-capcode-color: #F00000;
+  --post-id-hover: #800000;
+  --textarea-color: #FFFFFF;
+  --textarea-border: #A9A9A9;
+  /* ui shit */
+  --box-header-color: #9988EE;
+  --box-color: #FFFFFF;
+  --blotter-color: #FF0000;
+  --bantext-color: #FF0000;
+  --reply-notice-color: color-mix(var(--background-top), var(--background-color));
+  --boardlist-color: #8899AA;
+}
+
+
+
 body {
-  background: #EEF2FF url('img/fade-blue.png') repeat-x 50% 0%;
-  color: black;
+  background: var(--background-color) linear-gradient(var(--background-top), var(--background-color)) repeat-x;
+  background-size: 100% 200px;
+  color: var(--font-color);
   font-family: arial,helvetica,sans-serif;
   font-size: 10pt;
   margin: 0 4px;
   padding-left: 4px;
   padding-right: 4px;
 }
-
 .hidden {
   display: none;
 }
 
 a,a:visited {
   text-decoration: underline;
-  color: #34345C;
+  color: var(--link-color);
 }
 
 a:hover,.intro a.post_no:hover {
-  color: #ff0000;
+  color: var(--link-hover-color);
 }
 
 a.post_no {
@@ -36,11 +70,11 @@ a.post_no {
 }
 
 .intro a.email span.name {
-  color: #34345C;
+  color: var(--link-color);
 }
 
 .intro a.email:hover span.name {
-  color: #ff0000;
+  color: var(--link-hover-color);
 }
 
 .intro label {
@@ -53,7 +87,7 @@ a.post_no {
 }
 
 h2 {
-  color: #AF0A0F;
+  color: var(--board-title-color);
   font-size: 11pt;
   margin: 0;
   padding: 0;
@@ -71,7 +105,7 @@ h1 {
 }
 
 header div.subtitle,h1 {
-  color: #AF0A0F;
+  color: var(--board-title-color);
   text-align: center;
 }
 
@@ -92,7 +126,9 @@ form table input {
 }
 
 input[type="text"],input[type="password"],textarea {
-  border: 1px solid #a9a9a9;
+  border: 1px solid var(--textarea-border);
+  background-color: var(--textarea-color);
+  color: var(--font-color);
   text-indent: 0;
   text-shadow: none;
   text-transform: none;
@@ -121,10 +157,7 @@ form table.mod tr td {
 form table tr th {
   text-align: left;
   padding: 4px;
-}
-
-form table tr th {
-  background: #98E;
+  background: var(--box-header-color);
 }
 
 form table tr td div.center {
@@ -169,19 +202,21 @@ div.post p.fileinfo {
 }
 
 div.banner {
-  background-color: #E04000;
+  background-color: var(--reply-notice-color);
   font-size: 12pt;
   font-weight: bold;
   text-align: center;
   margin: 1em 0;
+  padding: 2px 0 2px 0;
+  border: 1px solid color-mix(in srgb, var(--reply-notice-color), black 20%);
 }
 
 div.banner,div.banner a {
-  color: white;
+  color: var(--board-title-color);
 }
 
 div.banner a:hover {
-  color: #EEF2FF;
+  color: var(--board-title-hover);
   text-decoration: none;
 }
 
@@ -239,17 +274,17 @@ input.delete {
 }
 
 .intro span.subject {
-  color: #0F0C5D;
+  color: var(--post-subject-color);
   font-weight: bold;
 }
 
 .intro span.name {
-  color: #117743;
+  color: var(--post-name-color);
   font-weight: bold;
 }
 
 .intro span.capcode,p.intro a.capcode,p.intro a.nametag {
-  color: #F00000;
+  color: var(--default-capcode-color);
   margin-left: 0;
 }
 
@@ -273,11 +308,11 @@ div.post.reply div.body {
 }
 
 div.post.reply.highlighted {
-  background: #D6BAD0;
+  background: var(--post-highlighted-background-color);
 }
 
 div.post.reply div.body a {
-  color: #D00;
+  color: var(--post-reply-link);
 }
 
 div.post {
@@ -290,12 +325,12 @@ div.post div.body {
 }
 
 div.post.reply {
-  background: #D6DAF0;
+  background: var(--post-background-color);
   margin: 0.2em 4px;
   padding: 0.2em 0.3em 0.5em 0.6em;
   border-width: 1px;
   border-style: none solid solid none;
-  border-color: #B7C5D9;
+  border-color: var(--post-border-color);
   display: inline-block;
   max-width: 94%!important;
 }
@@ -333,15 +368,18 @@ span.controls.op {
 span.controls a {
   margin: 0;
 }
-
+#modlink {
+  margin: 0;
+  padding: 0;
+}
 div#wrap {
   width: 900px;
   margin: 0 auto;
 }
 
 div.ban {
-  background: white;
-  border: 1px solid #98E;
+  background: var(--box-color);
+  border: 1px solid var(--box-header-color);
   max-width: 700px;
   margin: 30px auto;
 }
@@ -351,8 +389,8 @@ div.ban p,div.ban h2 {
 }
 
 div.ban h2 {
-  background: #98E;
-  color: black;
+  background: var(--box-header-color);
+  color: var(--font-color);
   font-size: 12pt;
 }
 
@@ -366,7 +404,7 @@ div.ban p.reason {
 }
 
 span.heading {
-  color: #AF0A0F;
+  color: var(--board-title-color);
   font-size: 11pt;
   font-weight: bold;
 }
@@ -408,7 +446,7 @@ table.test td,table.test th {
 }
 
 table.test tr.h th {
-  background: #98E;
+  background: var(--box-header-color);
 }
 
 table.test td img {
@@ -420,13 +458,13 @@ fieldset label {
 }
 
 div.pages {
-  color: #89A;
-  background: #D6DAF0;
+  color: var(--boardlist-color);
+  background: var(--post-background-color);
   display: inline-block;
   padding: 8px;
   margin: 8px 0 4px 0;
-  border-right: 1px solid #B7C5D9;
-  border-bottom: 1px solid #B7C5D9;
+  border-right: 1px solid var(--post-border-color);
+  border-bottom: 1px solid var(--post-border-color);
 }
 
 div.pages.top {
@@ -467,7 +505,7 @@ div.pages form input {
 
 hr {
   border: none;
-  border-top: 1px solid #B7C5D9;
+  border-top: 1px solid var(--post-border-color);
   height: 0;
   clear: left;
 }
@@ -494,7 +532,7 @@ table.modlog tr th {
 }
 
 table.modlog tr th {
-  background: #98E;
+  background: var(--box-header-color);
 }
 
 td.minimal,th.minimal {
@@ -509,7 +547,7 @@ div.top_notice {
 
 span.public_ban {
   display: block;
-  color: red;
+  color: var(--bantext-color);
   font-weight: bold;
   margin-top: 15px;
 }
@@ -520,7 +558,7 @@ span.toolong {
 }
 
 div.blotter {
-  color: red;
+  color: var(--blotter-color);
   font-weight: bold;
   text-align: center;
 }
@@ -533,7 +571,7 @@ table.mod.config-editor {
 table.mod.config-editor td {
   text-align: left;
   padding: 5px;
-  border-bottom: 1px solid #98e;
+  border-bottom: 1px solid --box-header-color;
 }
 
 table.mod.config-editor input[type="text"] {
@@ -546,10 +584,11 @@ table.mod.config-editor input[type="text"] {
   left: 0;
   right: 0;
   margin-top: 0;
+  padding: 2px;
   z-index: 30;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .15);
   border-bottom: 1px solid;
-  background: inherit;
+  background-color: var(--background-top);
 }
 
 .desktop-style body {
@@ -657,8 +696,8 @@ pre {
 }
 
 .theme-catalog div.thread:hover {
-  background: #D6DAF0;
-  border-color: #B7C5D9;
+  background: var(--post-background-color);
+  border-color: var(--post-border-color);
 }
 
 .theme-catalog div.grid-size-vsmall img {
@@ -814,7 +853,7 @@ pre {
 }
 
 #options_div, #alert_div {
-  background-color: #d6daf0;
+  background: linear-gradient(var(--background-top) 0%, var(--background-color) 20%);
   border: 1px solid black;
   display: inline-block;
   position: relative;
@@ -874,7 +913,7 @@ pre {
 }
 
 .options_tab_icon.active {
-  color: red;
+  color: var(--link-hover-color);
 }
 
 .options_tab_icon i {
@@ -920,7 +959,7 @@ pre {
   user-select: none;
 }
 .poster_id:hover {
-  color: #800000!important;
+  color: var(--post-id-hover)!important;
 }
 .poster_id::before {
   content: " ID: ";
@@ -971,7 +1010,7 @@ span.pln {
 /* Board List */
 div.boardlist {
   margin-top: 3px;
-  color: #89A;
+  color: var(--boardlist-color);
   font-size: 9pt;
 }
 
@@ -1243,26 +1282,79 @@ div.mix {
 
 .ban-reason-table th,
 .ban-reason-table td {
-  border: 1px solid #98E;
+  border: 1px solid var(--box-header-color);
   padding: 4px 8px;
   text-align: left;
 }
 
 .ban-reason-table th {
-  background-color: #98E;
-  color: black;
+  background-color: var(--box-header-color);
+  color: var(--font-color);
   font-weight: bold;
 }
 
 .ban-reason-table tr:nth-child(even) td {
-  background-color: #EEF2FF;
+  background-color: var(--background-color);
 }
 
 .ban-reason-table tr:nth-child(odd) td {
-  background-color: #FFFFFF;
+  background-color: var(--background-color);
 }
 
 .ban-reason-table tr:hover td {
-  background-color: #D6DAF0;
+  background-color: var(--post-background-color);
   cursor: pointer;
+}
+
+/* post shit */
+
+a[href^='mailto:sage']::after {
+	content: ' SAGE!';
+	text-decoration: none;
+}
+
+a[href^='mailto:bump']::after {
+        content: ' BUMP!';
+        text-decoration: none;
+}
+
+a[href^='mailto:sage'], a[href^='mailto:bump'] {
+	text-decoration: none;
+}
+
+a[href^='mailto:blacked']::after {
+    content: 'BLACKED!';
+    color: white;
+    text-decoration: none;
+    background: black;
+    font-weight: bold;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+a[href^='mailto:bleached']::after {
+    content: 'BLEACHED!';
+    color: white;
+    text-decoration: none;
+    background: red;
+    font-weight: bold;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+/* Stop iPhone zooming in */
+.mobile-style input[type="text"],
+.mobile-style input[type="password"],
+.mobile-style input[type="email"],
+.mobile-style input[type="number"],
+.mobile-style textarea,
+.mobile-style select
+{
+  font-size: 16px;
+  padding:2px;
+  font-family: arial,helvetica,sans-serif;
+}
+
+.mobile-style input[type="submit"],
+.mobile-style button {
+  font-size: 14px;
 }

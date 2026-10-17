@@ -1,6 +1,6 @@
 /**
  * miku.css
- * For AwsumChan by Circlepuller
+ * For AwsumChan by Circlepuller and modified for soyposter
  */
 body {
 	background: #D2FFEE url('img/fade-miku.png') top repeat-x;
@@ -35,22 +35,18 @@ form table tr th {
 	background: #95D2D3;
 }
 
-div.banner {
-	background-color: #E04000;
-}
-
 div.post.op hr {
 	border-color: #B7C9D5;
 }
 
 .intro span.subject {
 	color: #117743;
-	font-weight: 800;
+	font-weight: bold;
 }
 
 .intro span.name {
 	color: #117743;
-	font-weight: 800;
+	font-weight: bold;
 }
 
 div.post.reply.highlighted {
@@ -60,6 +56,20 @@ div.post.reply.highlighted {
 div.post.reply {
 	background: #B6DDDE;
 	border-color: #8FCCCD;
+}
+
+div.banner {
+	background-color: #C8F9EC;
+    border: 1px solid #8ca4a7;
+}
+
+div.banner, div.banner a {
+    color: #2B4343;
+}
+
+div.banner a:hover {
+    color: #1f363e;
+    text-decoration: underline;
 }
 
 div.ban {

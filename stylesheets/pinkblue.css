@@ -1,0 +1,24 @@
+:root {
+  --background-top: #D8D8F5;
+  --background-color: #F5F0FF;
+  --font-color: #302B3D;
+  --link-color: #5B5BA6;
+  --link-hover-color: #D94F8A;
+  --board-title-color: #C44F7D;
+  --board-title-hover: #A83D68;
+  --post-background-color: #E6E4F7;
+  --post-border-color: #C5C3E2;
+  --post-highlighted-background-color: #F1D6E5;
+  --post-highlighted-border-color: #D6A9C2;
+  --post-reply-link: #C94F86;
+  --post-name-color: #477A8A;
+  --post-subject-color: #55519A;
+  --default-capcode-color: #D94F7A;
+  --post-id-hover: #8E3F68;
+  --box-header-color: #8D83C9;
+  --blotter-color: #C94F86;
+  --bantext-color: #D94F7A;
+  --reply-notice-color: #E9E8FA;
+  --reply-notice-border-color: #AAA9CE;
+  --boardlist-color: #68769A;
+}

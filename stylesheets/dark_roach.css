@@ -436,26 +436,6 @@ table.mod.config-editor input[type="text"] {
   background: inherit;
 }
 
-#attention_bar {
-  height: 1.5em;
-  width: 100%;
-  text-align: center;
-}
-#attention_bar_form {
-  display: none;
-  padding: 0;
-  margin: 0;
-}
-#attention_bar_input {
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  text-align: center;
-}
-#attention_bar:hover {
-  background-color: #333333;
-  opacity: 0.8;
-}
 .intro.thread-hidden {
 	margin: 0px;
 	padding: 0px;

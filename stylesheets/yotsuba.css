@@ -1,6 +1,7 @@
 body {
-	background: #ffe url('img/fade-yotsuba.png') repeat-x 50% 0%;
-	color: #800000;
+  	background: #ffffee linear-gradient(#FED6AF,#ffe) repeat-x;
+	background-size: 100% 200px;
+    color: #800000;
 }
 a:link, a:visited, .intro a.email span.name {
 	color: #0000ff;
@@ -33,7 +34,14 @@ form table tr th {
     padding: 0 5px;
     font-size:10pt
 }
+.post-menu ul {
+    background-color: rgb(240, 224, 214); border: 1px solid #666;
+}
 div.ban h2 {
+	background: #FCA;
+	color: inherit;
+}
+div.ban h3 {
 	background: #FCA;
 	color: inherit;
 }
@@ -49,6 +57,10 @@ div.pages {
 }
 div.pages a.selected {
 	color: #800;
+}
+.theme-catalog div.thread:hover {
+  background: #f0f0d6;
+  border-color: #d9d9b7;
 }
 header div.subtitle,h1 {
   color: #800000;
@@ -71,9 +83,28 @@ table.modlog tr th {
 
 /* options.js */
 #options_div, #alert_div {
-	background: #f0e0d6;
+	background: linear-gradient(#FED6AF 0%, #ffe 50%)
 }
 
 .desktop-style div.boardlist:nth-child(1) {
 	background-color: #F0E0D6;
+}
+
+div.banner {
+  background-color:#FFEACD;
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 1em 0;
+  padding: 2px 0 2px 0;
+  border: 1px solid #a79d8c;
+}
+
+div.banner,div.banner a {
+  color: #800000;
+}
+
+div.banner a:hover {
+  color: #640000;
+  text-decoration: none;
 }

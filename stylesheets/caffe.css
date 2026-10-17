@@ -350,9 +350,6 @@ border-color: rgba(88, 53, 41, 0.6);
 margin: 0;
 width: 100%;
 }
-#attention_bar:hover {
-background-color: rgba(88, 53, 41, 0.3);
-}
 .intro a.email span.name {
 color: #8e6152;
 }

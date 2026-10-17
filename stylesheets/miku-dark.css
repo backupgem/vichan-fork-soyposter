@@ -1,0 +1,348 @@
+/**
+ * miku-dark.css
+ * modified by valid trans woman
+ */
+ body {
+     background-color: #1B2A28;
+     background-image: linear-gradient(#235365, #1B2A28);
+     background-repeat: repeat-x;
+     background-size: 100% 200px;
+	color: #D2FFEE;
+}
+
+a:link,
+a:visited {
+    text-decoration: none;
+    /* color: #4FA5A9; */
+    color: #32bfc6;
+}
+
+a:link:hover, a:visited:hover {
+	color: #FF6666;
+}
+
+a.post_no {
+	color: #D2FFEE;
+}
+
+.intro a.email span.name {
+	color: #4FA5A9; 
+}
+
+.intro a.email:hover span.name {
+	color: #FF6666;
+}
+
+h2, div.title, h1 {
+	color: #CC3333;
+}
+
+form table tr th {
+	background: #426567;
+	color: #D2FFEE;
+}
+
+div.banner {
+	background-color: #2B4343;
+	color: #FFF;
+}
+
+div.post.op hr {
+	border-color: #95A8B5;
+}
+
+.intro span.subject {
+	color: #349583; 
+	font-weight: bold;
+}
+
+.intro span.name {
+	color: #4FA5A9; 
+	font-weight: bold;
+}
+
+div.post.reply.highlighted {
+	background: #204d50; 
+	color: #D2FFEE;
+}
+
+div.post.reply {
+	background: #1F3636; 
+	border-color: #4FA5A9; 
+	color: #D2FFEE;
+}
+
+div.ban {
+	border: 1px solid #4FA5A9; 
+}
+
+div.ban h2 {
+	background: #2b4542;
+	color: #5d9f9f; 
+}
+
+div.pages {
+	color: #AABBCD;
+	background: #2A5050; 
+	border-right: 1px solid #4FA5A9; 
+	border-bottom: 1px solid #4FA5A9; 
+}
+
+hr {
+	border-color: #95A8B5;
+}
+
+div.boardlist {
+	color: #4FA5A9; 
+	background-color: rgba(25%, 45%, 55%, 0.3); 
+}
+
+.desktop-style div.boardlist:nth-child(1) {
+  text-shadow: #1B2A28 1px 1px 1px, #1B2A28 -1px -1px 1px; 
+  background: #2b4542;
+}
+
+.desktop-style div.boardlist:nth-child(1):hover, .desktop-style div.boardlist:nth-child(1).cb-menu {
+  background-color: rgba(25%, 45%, 55%, 0.45); 
+}
+
+.dropzone {
+  color: #D2FFEE;
+  cursor: default;
+  margin: auto;
+  padding: 0px 4px;
+  text-align: center;
+  min-height: 50px;
+  max-height: 140px;
+  transition: 0.2s;
+  background-color: rgba(30, 50, 60, 0.5); 
+  overflow-y: auto;
+}
+
+.dropzone .file-hint {
+  color: rgba(210, 255, 238, 0.5);
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 5px;
+  padding: 10px 0px;
+  top: 5px;
+  transition: 0.2s;
+  border: 2px dashed rgba(125, 150, 160, 0.4);
+}
+
+.file-hint:hover, .dropzone.dragover .file-hint {
+  color: rgba(210, 255, 238, 1);
+  border-color: rgba(125, 150, 160, 0.8);
+}
+
+.dropzone.dragover {
+  background-color: rgba(30, 50, 60, 1);
+}
+
+input[type="submit"], input[type="button"], button {
+  background-color: #426567; 
+  border: 1px solid #4FA5A9; 
+  color: #D2FFEE;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+input[type="submit"]:hover, input[type="button"]:hover, button:hover {
+  background-color: #567F81; 
+}
+
+input[type="text"], input[type="password"], textarea {
+  background-color: #1F3636; 
+  color: #D2FFEE;
+  border: 1px solid #4FA5A9; 
+  padding: 5px;
+  max-width: 100%;
+}
+
+input[type="text"]::placeholder, input[type="password"]::placeholder, textarea::placeholder {
+  color: rgba(210, 255, 238, 0.5);
+}
+
+input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
+  border-color: #567F81; 
+  outline: none;
+}
+
+#quick-reply input[type="text"], #quick-reply input[type="password"], #quick-reply textarea {
+  background-color: #1F3636;
+  color: #D2FFEE;
+  border: 1px solid #4FA5A9;
+  max-width: 100%;
+}
+
+.theme-catalog div.thread:hover {
+    background: rgba(31, 54, 62, 0.9); 
+    border-color: rgba(67, 130, 150, 0.7); 
+}
+
+div.ban {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(210, 255, 238, 0.5);
+    max-width: 700px;
+    margin: 30px auto;
+    color: #D2FFEE;
+}
+
+div.post.reply div.body a {
+    color: #FF6F3F;
+}
+
+a:hover, .intro a.post_no:hover {
+    color: #FF6666;
+}
+
+div.banner {
+    background-color: #2B4343; 
+    font-size: 12pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 1em 0;
+}
+
+div.banner, div.banner a {
+    color: #D2FFEE;
+}
+
+div.banner a:hover {
+    color: #A0D4D2;
+    text-decoration: underline;
+}
+
+table.modlog {
+  margin: auto;
+  width: 100%;
+}
+
+table.modlog tr td {
+  text-align: left;
+  margin: 0;
+  padding: 4px 15px 0 0;
+  color: #e0e0e0; 
+}
+
+table.modlog tr th {
+  text-align: left;
+  padding: 4px 15px 5px 5px;
+  white-space: nowrap;
+  color: #ffffff; 
+}
+
+table.modlog tr th {
+  background: #3a3a3a; 
+  border-bottom: 2px solid #6b6b6b; 
+}
+
+div.pages a.selected {
+  color: #00B2A9; 
+  font-weight: bolder;
+}
+
+#banlist td:hover {
+  overflow: visible;
+  height: auto !important;
+  background-color: #1f1f1f;
+  color: #c6e2ff; 
+  z-index: 1;
+  position: relative;
+  border: 1px solid #444;
+  padding: 1px;
+}
+
+span.trip {
+  color: #4FA5A9;
+}
+
+.intro a.email span.name {
+    color: #435758; 
+}
+
+div.report {
+    color: #D2FFEE;
+}
+
+#banlist td:hover {
+    overflow: visible;
+    height: auto !important;
+    background-color: #1f1f1f;
+    color: #bae8ea;
+    z-index: 1;
+    position: relative;
+    border: 1px solid #444;
+    padding: 1px;
+}
+
+#banlist td:hover {
+    overflow: visible;
+    height: auto !important;
+    background-color: #426567;
+    z-index: 1;
+    position: relative;
+    border: 1px solid black;
+    padding: 1px;
+}
+
+tr.tblhead > th {
+    display: block;
+    box-sizing: border-box;
+    float: left;
+    padding: 0;
+    color: rgb(255 255 255 / 84%);
+}
+
+
+#ua-info code {
+    background: #2f4849;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+header div.subtitle, h1 {
+    color: #426567;
+    text-align: center;
+}
+
+h2, div.title, h1 {
+    color: #5f9a9d;
+}
+
+tr.tblhead > th {
+    display: block;
+    box-sizing: border-box;
+    float: left;
+    padding: 0;
+    color: #d2ffee !important;
+}
+
+#banlist td:hover {
+    overflow: visible;
+    height: auto !important;
+    background-color: #426567 !important;
+    color: #d2ffee !important;
+    z-index: 1;
+    position: relative;
+    border: 1px solid #444;
+    padding: 1px;
+}
+
+.banlist-opts .checkboxes label {
+    display: block;
+    color: #d2ffee !important;
+}
+
+div.ban {
+    background: #1f3636;
+    border: 1px solid rgba(210, 255, 238, 0.5);
+    max-width: 700px;
+    margin: 30px auto;
+    color: #D2FFEE;
+}
+
+.banned-page-container div.post.reply {
+    background: #2b4343;
+}

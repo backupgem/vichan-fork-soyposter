@@ -1,0 +1,32 @@
+/* original css by svvt or codefag or whoever, modified by manager for soyposter.party */
+:root {
+  /* background shit */
+  --background-top: #afe0da;
+  --background-color: #dcfffb;
+  /* posting */
+  --font-color: #000000;
+  --link-color: #34345C;
+  --link-hover-color: #FF0000;
+  --board-title-color: #AF0A0F;
+  --board-title-hover: #930F14;
+  --post-background-color: #d1edea;
+  --post-highlighted-background-color: #D6BAD0;
+  /* these are connected, only kept to make shit easier */
+  --post-border-color: color-mix(var(--post-background-color), black 20%);
+  --post-highlighted-border-color: color-mix(var(--post-highlighted-background-color), black 20%);
+  --post-reply-link: #DD0000;
+  --post-name-color: #117743;
+  --post-subject-color: #0F0C5D;
+  --default-capcode-color: #F00000;
+  --post-id-hover: #800000;
+  --textarea-color: #FFFFFF;
+  --textarea-border: #A9A9A9;
+  /* ui shit */
+  --box-header-color: #87ede1;
+  --box-color: #FFFFFF;
+  --blotter-color: #FF0000;
+  --bantext-color: #FF0000;
+  --reply-notice-color: #caece8;
+  --reply-notice-border-color: #8C8FA7;
+  --boardlist-color: #8899AA;
+}

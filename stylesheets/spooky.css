@@ -1,0 +1,32 @@
+/* steal quote's ideas for nusoi to make shit easier */
+:root {
+  /* background shit */
+  --background-top: #0e161f;
+  --background-color: #15202b;
+  /* posting */
+  --font-color: #ffffff;
+  --link-color: #f2711c;
+  --link-hover-color: #934d0f;
+  --board-title-color: #ff6600;
+  --board-title-hover: #934d0f;
+  --post-background-color: #192734;
+  --post-border-color: #25323e;
+  --post-highlighted-background-color: color-mix(var(--post-background-color), black 10%);
+  /* these are connected, only kept to make shit easier */
+  --post-border-color: color-mix(var(--post-background-color), black 20%);
+  --post-highlighted-border-color: color-mix(var(--post-highlighted-background-color), black 20%);
+  --post-reply-link: #DD0000;
+  --post-name-color: #ff6600;
+  --post-subject-color: #5d0c0c;
+  --default-capcode-color: #F00000;
+  --post-id-hover: #800000;
+  --textarea-color: #192734;
+  --textarea-border:#38444d;
+  /* ui shit */
+  --box-header-color: #192734;
+  --box-color: color-mix(var(--box-header-color), black 7.5%);
+  --blotter-color: #fff;
+  --bantext-color: #ff6600;
+  --reply-notice-color: color-mix(var(--background-top), var(--background-color));
+  --boardlist-color: #5e6176;
+}
