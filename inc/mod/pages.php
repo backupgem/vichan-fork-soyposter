@@ -140,6 +140,11 @@ function mod_dashboard(Context $ctx) {
 	$query = query('SELECT COUNT(*) FROM ``ban_appeals``') or error(db_error($query));
 	$args['appeals'] = $query->fetchColumn();
 
+	if (hasPermission($config['mod']['file_approval'])) {
+		$query = query('SELECT COUNT(*) FROM ``file_approval``') or error(db_error());
+		$args['file_approvals'] = $query->fetchColumn();
+	}
+
 	if ($mod['type'] >= ADMIN && $config['check_updates']) {
 		if (!$config['version'])
 			error(_('Could not find current version! (Check .installed)'));
@@ -269,7 +274,7 @@ function mod_search(Context $ctx, $type, $search_query_escaped, $page_no = 1) {
 
 	// Which `field` to search?
 	if ($type == 'posts')
-		$sql_field = array('body_nomarkup', 'files', 'subject', 'filehash', 'ip', 'name', 'trip');
+		$sql_field = array('body_nomarkup', 'files', 'subject', 'filehash', 'ip', 'name', 'trip', 'ua_hash', 'accept_language_hash', 'chrome_hash');
 	if ($type == 'IP_notes')
 		$sql_field = 'body';
 	if ($type == 'bans')
@@ -380,6 +385,24 @@ function mod_search(Context $ctx, $type, $search_query_escaped, $page_no = 1) {
 		],
 		$mod
 	);
+}
+
+function mod_ajax_render_post(Context $ctx, $board, $post_id) {
+	global $pdo, $mod;
+
+$postData = [
+    'id' => 1,
+    'name' => 'Paranoid',
+    'subject' => '',
+    'body' => 'I\'m trans',
+    'body_nomarkup' => 'I\'m trans',
+    'files' => [],
+    'mod_id' => 0,
+    'embed' => '',
+    'filehash' => '',
+];
+	$ajaxpost = new Post($postData);
+	echo $ajaxpost->build();
 }
 
 function mod_edit_board(Context $ctx, $boardName) {
@@ -744,6 +767,31 @@ function mod_log(Context $ctx, $page_no = 1) {
 
 	mod_page(_('Moderation log'), $config['file_mod_log'], [ 'logs' => $logs, 'count' => $count ], $mod);
 }
+function mod_userlog(Context $ctx, $page_no = 1) {
+	global $mod;
+	$config = $ctx->get('config');
+
+	if ($page_no < 1)
+		error($config['error']['404']);
+
+	if (!hasPermission($config['mod']['modlog']))
+		error($config['error']['noaccess']);
+
+	$query = prepare("SELECT * from ``userlogs`` ORDER BY `time` DESC LIMIT :offset, :limit");
+	$query->bindValue(':limit', $config['mod']['modlog_page'], PDO::PARAM_INT);
+	$query->bindValue(':offset', ($page_no - 1) * $config['mod']['modlog_page'], PDO::PARAM_INT);
+	$query->execute() or error(db_error($query));
+	$logs = $query->fetchAll(PDO::FETCH_ASSOC);
+
+	if (empty($logs) && $page_no > 1)
+		error($config['error']['404']);
+
+	$query = prepare("SELECT COUNT(*) FROM ``userlogs``");
+	$query->execute() or error(db_error($query));
+	$count = $query->fetchColumn();
+
+	mod_page(_('User log'), 'mod/userlog.html', [ 'logs' => $logs, 'count' => $count ], $mod);
+}
 
 function mod_user_log(Context $ctx, $username, $page_no = 1) {
 	global $mod;
@@ -821,6 +869,320 @@ function mod_board_log(Context $ctx, $board, $page_no = 1, $hide_names = false, 
 	);
 }
 
+function mod_file_approval(Context $ctx) {
+	global $board, $mod;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['file_approval']))
+		error($config['error']['noaccess']);
+
+	$query = query("SELECT `board`, `postid`, `hash`, `file`, `thumb`, `time`
+		FROM ``file_approval`` ORDER BY `time` ASC") or error(db_error());
+	$pending_files = $query->fetchAll(PDO::FETCH_ASSOC);
+	$files = [];
+
+	foreach ($pending_files as $pending_file) {
+		if (!openBoard($pending_file['board']))
+			error(sprintf(_("Board %s doesn't exist"), $pending_file['board']));
+
+		if (!preg_match('/^[a-f0-9]{32}$/i', $pending_file['hash'])) {
+			$filename = $pending_file['file'];
+			if (!$filename || basename($filename) !== $filename ||
+				strpos($filename, '/') !== false || strpos($filename, '\\') !== false)
+				error(_('Cannot repair a pending file with an invalid filename.'));
+
+			$file_path = $board['dir'] . $config['dir']['img'] . $filename;
+			if (!is_file($file_path) || !is_readable($file_path))
+				error(sprintf(_('Cannot repair the hash for missing pending file %s.'), $filename));
+
+			$actual_hash = md5_file($file_path);
+			if ($actual_hash === false)
+				error(sprintf(_('Could not calculate the hash for pending file %s.'), $filename));
+
+			$stored_post_query = prepare(sprintf(
+				"SELECT `files` FROM ``posts_%s`` WHERE `id` = :id",
+				$board['uri']
+			));
+			$stored_post_query->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+			$stored_post_query->execute() or error(db_error($stored_post_query));
+			$stored_files = json_decode($stored_post_query->fetchColumn(), true);
+			if (!is_array($stored_files))
+				error(sprintf(_('Could not read files for pending post %d.'), $pending_file['postid']));
+
+			$found_file = false;
+			$pending_post_files = [];
+			$invalid_hashes = [];
+			$all_hashes = '';
+			foreach ($stored_files as &$stored_file) {
+				if (!is_array($stored_file))
+					continue;
+
+				$file_is_target = isset($stored_file['file']) && $stored_file['file'] === $filename;
+				$is_pending = (isset($stored_file['is_approved']) && !$stored_file['is_approved']) ||
+					$file_is_target;
+				if ($is_pending && isset($stored_file['file']) && $stored_file['file'] !== 'deleted') {
+					if ($file_is_target) {
+						$stored_file['hash'] = $actual_hash;
+						$found_file = true;
+					} elseif (!isset($stored_file['hash']) ||
+						!preg_match('/^[a-f0-9]{32}$/i', $stored_file['hash'])) {
+						$sibling_filename = $stored_file['file'];
+						if (!$sibling_filename || basename($sibling_filename) !== $sibling_filename ||
+							strpos($sibling_filename, '/') !== false || strpos($sibling_filename, '\\') !== false)
+							error(_('Cannot repair a pending file with an invalid filename.'));
+
+						$sibling_path = $board['dir'] . $config['dir']['img'] . $sibling_filename;
+						if (!is_file($sibling_path) || !is_readable($sibling_path))
+							error(sprintf(_('Cannot repair the hash for missing pending file %s.'), $sibling_filename));
+
+						$sibling_hash = md5_file($sibling_path);
+						if ($sibling_hash === false)
+							error(sprintf(_('Could not calculate the hash for pending file %s.'), $sibling_filename));
+
+						if (!empty($stored_file['hash']))
+							$invalid_hashes[$stored_file['hash']] = true;
+						$stored_file['hash'] = $sibling_hash;
+					}
+
+					if (isset($stored_file['hash']) &&
+						preg_match('/^[a-f0-9]{32}$/i', $stored_file['hash']))
+						$stored_file['hash'] = strtolower($stored_file['hash']);
+					$pending_post_files[] = $stored_file;
+				}
+
+				if (isset($stored_file['hash']) && preg_match('/^[a-f0-9]{32}$/i', $stored_file['hash']))
+					$stored_file['hash'] = strtolower($stored_file['hash']);
+				if (isset($stored_file['hash']))
+					$all_hashes .= $stored_file['hash'];
+			}
+			unset($stored_file);
+			$invalid_hashes[$pending_file['hash']] = true;
+
+			if (!$found_file)
+				error(sprintf(_('Could not find pending file %s in post %d.'), $filename, $pending_file['postid']));
+
+			$encoded_files = json_encode($stored_files);
+			if ($encoded_files === false)
+				error(sprintf(_('Could not serialize files for post %d.'), $pending_file['postid']));
+
+			$update_post = prepare(sprintf(
+				"UPDATE ``posts_%s`` SET `files` = :files, `filehash` = :filehash WHERE `id` = :id",
+				$board['uri']
+			));
+			$update_post->bindValue(':files', $encoded_files);
+			$update_post->bindValue(
+				':filehash',
+				count($stored_files) === 1 ? $actual_hash : md5($all_hashes)
+			);
+			$update_post->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+			$update_post->execute() or error(db_error($update_post));
+
+			foreach (array_keys($invalid_hashes) as $invalid_hash) {
+				$delete_old_hash = prepare("DELETE FROM ``file_approval``
+					WHERE `board` = :board AND `postid` = :postid AND `hash` = :hash");
+				$delete_old_hash->bindValue(':board', $pending_file['board']);
+				$delete_old_hash->bindValue(':postid', $pending_file['postid'], PDO::PARAM_INT);
+				$delete_old_hash->bindValue(':hash', $invalid_hash);
+				$delete_old_hash->execute() or error(db_error($delete_old_hash));
+			}
+
+			$replace_hash = prepare("INSERT INTO ``file_approval``
+				(`board`, `postid`, `hash`, `file`, `thumb`, `time`)
+				VALUES (:board, :postid, :hash, :file, :thumb, :time)
+				ON DUPLICATE KEY UPDATE `file` = VALUES(`file`), `thumb` = VALUES(`thumb`)");
+			foreach ($pending_post_files as $pending_post_file) {
+				$replace_hash->bindValue(':board', $pending_file['board']);
+				$replace_hash->bindValue(':postid', $pending_file['postid'], PDO::PARAM_INT);
+				$replace_hash->bindValue(':hash', $pending_post_file['hash']);
+				$replace_hash->bindValue(':file', $pending_post_file['file']);
+				if (isset($pending_post_file['thumb']))
+					$replace_hash->bindValue(':thumb', $pending_post_file['thumb']);
+				else
+					$replace_hash->bindValue(':thumb', null, PDO::PARAM_NULL);
+				$replace_hash->bindValue(':time', $pending_file['time'], PDO::PARAM_INT);
+				$replace_hash->execute() or error(db_error($replace_hash));
+			}
+
+			$pending_file['hash'] = $actual_hash;
+		}
+
+		$post_query = prepare(sprintf(
+			"SELECT `thread` FROM ``posts_%s`` WHERE `id` = :id",
+			$board['uri']
+		));
+		$post_query->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+		$post_query->execute() or error(db_error($post_query));
+		$thread_id = $post_query->fetchColumn();
+
+		$base_uri = $config['root'] . $board['dir'];
+		$img_src = $base_uri . $config['dir']['img'] . $pending_file['file'];
+		$extension = strtolower(pathinfo($pending_file['file'], PATHINFO_EXTENSION));
+		$thumb = $pending_file['thumb'];
+
+		if ($thumb && $thumb !== 'file' && $thumb !== 'spoiler') {
+			$thumb_src = $base_uri . $config['dir']['thumb'] . $thumb;
+		} elseif ($thumb === 'file') {
+			$icon = isset($config['file_icons'][$extension])
+				? $config['file_icons'][$extension]
+				: $config['file_icons']['default'];
+			$thumb_src = $config['root'] . sprintf($config['file_thumb'], $icon);
+		} else {
+			$thumb_src = $img_src;
+		}
+
+		$files[$pending_file['hash']][] = [
+			'board' => $board['uri'],
+			'postid' => $pending_file['postid'],
+			'threadid' => $thread_id ?: null,
+			'img_src' => $img_src,
+			'thumb_src' => $thumb_src,
+			'extension' => $extension
+		];
+	}
+
+	mod_page(_('File approval'), $config['file_mod_file_approval'], [
+		'files' => $files
+	], $mod);
+}
+
+function mod_reject_file_approval(Context $ctx, $hash) {
+	global $board;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['file_approval']))
+		error($config['error']['noaccess']);
+
+	$query = prepare("SELECT `board`, `postid` FROM ``file_approval`` WHERE `hash` = :hash");
+	$query->bindValue(':hash', $hash);
+	$query->execute() or error(db_error($query));
+	$pending_files = $query->fetchAll(PDO::FETCH_ASSOC);
+	if (!$pending_files)
+		error($config['error']['404']);
+
+	$banned_ips = [];
+	foreach ($pending_files as $pending_file) {
+		if (!openBoard($pending_file['board']))
+			error(sprintf(_("Board %s doesn't exist"), $pending_file['board']));
+
+		$post_query = prepare(sprintf(
+			"SELECT * FROM ``posts_%s`` WHERE `id` = :id",
+			$board['uri']
+		));
+		$post_query->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+		$post_query->execute() or error(db_error($post_query));
+		$post = $post_query->fetch(PDO::FETCH_ASSOC);
+		if (!$post || empty($post['ip']))
+			error(sprintf(_("Could not find the poster for pending file %s."), $hash));
+
+		if (!isset($banned_ips[$post['ip']])) {
+			Bans::new_ban(
+				$post['ip'],
+				_('File rejected.'),
+				900,
+				false,
+				false,
+				$config['ban_show_post'] ? $post : false
+			);
+			$banned_ips[$post['ip']] = true;
+		}
+	}
+
+	$query = prepare("DELETE FROM ``file_approval`` WHERE `hash` = :hash");
+	$query->bindValue(':hash', $hash);
+	$query->execute() or error(db_error($query));
+
+	modLog(sprintf("Rejected file with hash %s and issued %d 15-minute ban(s)", $hash, count($banned_ips)));
+	header('Location: ?/file_approval', true, $config['redirect_http']);
+}
+
+function mod_approve_file_approval(Context $ctx, $hash) {
+	global $board, $mod;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['file_approval']))
+		error($config['error']['noaccess']);
+
+	$query = prepare("SELECT `board`, `postid` FROM ``file_approval`` WHERE `hash` = :hash");
+	$query->bindValue(':hash', $hash);
+	$query->execute() or error(db_error($query));
+	$pending_files = $query->fetchAll(PDO::FETCH_ASSOC);
+	if (!$pending_files)
+		error($config['error']['404']);
+
+	$affected_threads = [];
+	foreach ($pending_files as $pending_file) {
+		if (!openBoard($pending_file['board']))
+			error(sprintf(_("Board %s doesn't exist"), $pending_file['board']));
+
+		$post_query = prepare(sprintf(
+			"SELECT `files`, `thread` FROM ``posts_%s`` WHERE `id` = :id",
+			$board['uri']
+		));
+		$post_query->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+		$post_query->execute() or error(db_error($post_query));
+		$post = $post_query->fetch(PDO::FETCH_ASSOC);
+		if (!$post)
+			error($config['error']['404']);
+
+		$post_files = json_decode($post['files'], true);
+		if (!is_array($post_files))
+			error(sprintf(_("Could not read the files for post %d."), $pending_file['postid']));
+
+		$found = false;
+		foreach ($post_files as &$post_file) {
+			if (isset($post_file['hash']) && hash_equals($hash, $post_file['hash'])) {
+				$post_file['is_approved'] = true;
+				$found = true;
+			}
+		}
+		unset($post_file);
+
+		if (!$found)
+			error(sprintf(_("Could not find pending file %s in post %d."), $hash, $pending_file['postid']));
+
+		$update = prepare(sprintf(
+			"UPDATE ``posts_%s`` SET `files` = :files WHERE `id` = :id",
+			$board['uri']
+		));
+		$encoded_files = json_encode($post_files);
+		if ($encoded_files === false)
+			error(sprintf(_("Could not serialize the files for post %d."), $pending_file['postid']));
+		$update->bindValue(':files', $encoded_files);
+		$update->bindValue(':id', $pending_file['postid'], PDO::PARAM_INT);
+		$update->execute() or error(db_error($update));
+
+		$thread_id = $post['thread'] ? $post['thread'] : $pending_file['postid'];
+		$affected_threads[$board['uri']][$thread_id] = true;
+	}
+
+	$whitelist = prepare("INSERT INTO ``file_whitelist`` (`hash`, `modid`, `time`)
+		VALUES (:hash, :modid, :time)
+		ON DUPLICATE KEY UPDATE `modid` = VALUES(`modid`), `time` = VALUES(`time`)");
+	$whitelist->bindValue(':hash', $hash);
+	$whitelist->bindValue(':modid', $mod['id'], PDO::PARAM_INT);
+	$whitelist->bindValue(':time', time(), PDO::PARAM_INT);
+	$whitelist->execute() or error(db_error($whitelist));
+
+	$query = prepare("DELETE FROM ``file_approval`` WHERE `hash` = :hash");
+	$query->bindValue(':hash', $hash);
+	$query->execute() or error(db_error($query));
+
+	modLog("Approved file with hash " . $hash);
+
+	foreach ($affected_threads as $board_uri => $threads) {
+		if (!openBoard($board_uri))
+			error(sprintf(_("Board %s doesn't exist"), $board_uri));
+
+		foreach ($threads as $thread_id => $_unused)
+			buildThread($thread_id);
+
+		buildIndex();
+		Vichan\Functions\Theme\rebuild_themes('post', $board_uri);
+	}
+
+	header('Location: ?/file_approval', true, $config['redirect_http']);
+}
+
 function mod_view_catalog(Context $ctx, $boardName) {
 	$config = $ctx->get('config');
 	require_once($config['dir']['themes'].'/catalog/theme.php');
@@ -875,7 +1237,29 @@ function mod_view_thread50(Context $ctx, $boardName, $thread) {
 	$page = buildThread50($thread, true, $mod);
 	echo $page;
 }
+/*
+function mod_eval(Context $ctx, $code) {
+	$config = $ctx->get('config');
+	if (!$config['mod']['admin_is_retarded'])
+		error("This page is not enabled.");
 
+	if (!hasPermission($config['mod']['eval_code']))
+		error($config['error']['noaccess']);
+
+	$html = "";
+
+	if (isset($_POST['code'])) {
+		$output = eval($_POST['code']);
+		$html .= "<textarea style=\"width: 90%; margin: auto; box-sizing: border-box\">" . htmlspecialchars($output) . "</textarea>";
+	} else {
+		$html .= '
+		<form action="?/PHP" method="post" style="padding-top: 1em;width: 90%;margin: auto;margin-bottom: 2em;">
+		<tt style="display: block;text-align: left;width: 90%;">&lt;?php</tt>
+		<textarea name="code" rows="6" style=" height: 130px;box-sizing: border-box;"></textarea>
+		<tt style="display: block;text-align: left;">?&gt;</tt><input type="submit" style="text-align: center;display: block;margin: auto;">
+		</form>';
+	}
+}*/
 function mod_ip_remove_note(Context $ctx, $cloaked_ip, $id) {
 	$ip = uncloak_ip($cloaked_ip);
 	$config = $ctx->get('config');
@@ -896,7 +1280,44 @@ function mod_ip_remove_note(Context $ctx, $cloaked_ip, $id) {
 	header('Location: ?/IP/' . $cloaked_ip . '#notes', true, $config['redirect_http']);
 }
 
+function mod_ip_remove_telegram(Context $ctx, $cloaked_ip, $id) {
+	$ip = uncloak_ip($cloaked_ip);
+	$config = $ctx->get('config');
+	global $mod;
 
+	if (!hasPermission($config['mod']['remove_telegrams']))
+		error($config['error']['noaccess']);
+
+	if (filter_var($ip, FILTER_VALIDATE_IP) === false)
+		error("Invalid IP address.");
+
+	$query = prepare('DELETE FROM ``telegrams`` WHERE `ip` = :ip AND `id` = :id');
+	$query->bindValue(':ip', $ip);
+	$query->bindValue(':id', $id);
+	$query->execute() or error(db_error($query));
+
+	modLog("Removed a telegram for <a href=\"?/IP/{$cloaked_ip}\">{$cloaked_ip}</a>");
+
+	header('Location: ?/IP/' . $cloaked_ip . '#telegrams', true, $config['redirect_http']);
+}
+
+function mod_ipdetails(Context $ctx, $cip) {
+	$ip = uncloak_ip($cip);
+	global $mod;
+	$config = $ctx->get('config');
+	if (filter_var($ip, FILTER_VALIDATE_IP) === false)
+	        error("Invalid IP address.");
+
+	if (!hasPermission($config['mod']['show_ip'])) error($config['error']['noaccess']);
+
+	$query = prepare("SELECT COUNT(*) FROM ``userlogs`` WHERE `ip` = :ip AND `board` = 'trash' AND type = 'load_file'");
+	$query->bindValue(':ip', $ip);
+	$query->execute() or error(db_error($query));
+
+	$trash_images = $query->fetch(PDO::FETCH_ASSOC);
+	$trash_images = $trash_images["COUNT(*)"];
+	die("/trash/ images loaded by this IP: $trash_images");
+}
 
 function mod_ip(Context $ctx, $cip) {
 	$ip = uncloak_ip($cip);
@@ -943,6 +1364,24 @@ function mod_ip(Context $ctx, $cip) {
 		return;
 	}
 
+	if (isset($_POST['telegram'])) {
+		if (!hasPermission($config['mod']['create_telegrams']))
+			error($config['error']['noaccess']);
+
+		$_POST['telegram'] = escape_markup_modifiers($_POST['telegram']);
+		markup($_POST['telegram']);
+		$query = prepare('INSERT INTO ``telegrams`` VALUES (NULL, :mod_id, :ip, :message, 0, :created_at)');
+		$query->bindValue(':ip', $ip);
+		$query->bindValue(':mod_id', $mod['id']);
+		$query->bindValue(':created_at', time());
+		$query->bindValue(':message', $_POST['telegram']);
+		$query->execute() or error(db_error($query));
+
+		modLog("Added a telegram for <a href=\"?/IP/{$cip}\">{$cip}</a>");
+
+		header('Location: ?/IP/' . $cip . '#telegrams', true, $config['redirect_http']);
+		return;
+	}
 
 	$args = [];
 	$args['ip'] = $ip;
@@ -987,6 +1426,13 @@ function mod_ip(Context $ctx, $cip) {
 		$query->execute() or error(db_error($query));
 		$args['notes'] = $query->fetchAll(PDO::FETCH_ASSOC);
 	}
+	
+	if (hasPermission($config['mod']['view_telegrams'])) {
+		$query = prepare("SELECT ``telegrams``.*, `username` FROM ``telegrams`` LEFT JOIN ``mods`` ON `mod_id` = ``mods``.`id` WHERE `ip` = :ip ORDER BY `created_at` DESC");
+		$query->bindValue(':ip', $ip);
+		$query->execute() or error(db_error($query));
+		$args['telegrams'] = $query->fetchAll(PDO::FETCH_ASSOC);
+	}
 
 	if (hasPermission($config['mod']['modlog_ip'])) {
 		$query = prepare("SELECT `username`, `mod`, `ip`, `board`, `time`, `text` FROM ``modlogs`` LEFT JOIN ``mods`` ON `mod` = ``mods``.`id` WHERE `text` LIKE :search ORDER BY `time` DESC LIMIT 50");
@@ -1000,6 +1446,253 @@ function mod_ip(Context $ctx, $cip) {
 	$args['security_token'] = make_secure_link_token('IP/' . $cip);
 
 	mod_page(sprintf('%s: %s', _('IP'), htmlspecialchars($cip)), $config['file_mod_view_ip'], $args, $mod, $args['hostname']);
+}
+
+function mod_alh(Context $ctx, $accept_language_hash) {
+	global $mod;
+	$config = $ctx->get('config');
+
+	$boards = listBoards();
+	foreach ($boards as $board) {
+		openBoard($board['uri']);
+		if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+			continue;
+		$query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `accept_language_hash` = :accept_language_hash ORDER BY `sticky` DESC, `id` DESC LIMIT :limit', $board['uri']));
+		$query->bindValue(':accept_language_hash', $accept_language_hash);
+		$query->bindValue(':limit', $config['mod']['ip_recentposts'], PDO::PARAM_INT);
+		$query->execute() or error(db_error($query));
+
+		while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+			if (!$post['thread']) {
+				$po = new Thread($post, '?/', $mod, false);
+			} else {
+				$po = new Post($post, '?/', $mod);
+			}
+
+			if (!isset($args['posts'][$board['uri']]))
+				$args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+			$args['posts'][$board['uri']]['posts'][] = $po->build(true);
+		}
+	}
+
+	$args['boards'] = $boards;
+	$args['token'] = make_secure_link_token('ban');
+
+	$args['logs'] = [];
+
+	$args['security_token'] = make_secure_link_token('ALH/' . $accept_language_hash);
+
+	mod_page(sprintf('%s: %s', _('AL Hash'), htmlspecialchars($accept_language_hash)), $config['file_mod_view_ip'], $args, $mod);
+}
+
+function mod_ah(Context $ctx, $accept_hash) {
+        global $mod;
+        $config = $ctx->get('config');
+
+        $boards = listBoards();
+        foreach ($boards as $board) {
+                openBoard($board['uri']);
+                if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+                        continue;
+                $query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `accept_hash` = :accept_hash ORDER BY `sticky` DESC, `id` DESC LIMIT :limit', $board['uri']));
+                $query->bindValue(':accept_hash', $accept_hash);
+                $query->bindValue(':limit', $config['mod']['ip_recentposts'], PDO::PARAM_INT);
+                $query->execute() or error(db_error($query));
+
+                while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+                        if (!$post['thread']) {
+                                $po = new Thread($post, '?/', $mod, false);
+                        } else {
+                                $po = new Post($post, '?/', $mod);
+                        }
+
+                        if (!isset($args['posts'][$board['uri']]))
+                                $args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+                        $args['posts'][$board['uri']]['posts'][] = $po->build(true);
+                }
+        }
+
+        $args['boards'] = $boards;
+        $args['token'] = make_secure_link_token('ban');
+
+        $args['logs'] = [];
+
+        $args['security_token'] = make_secure_link_token('AH/' . $accept_hash);
+
+        mod_page(sprintf('%s: %s', _('A Hash'), htmlspecialchars($accept_hash)), $config['file_mod_view_ip'], $args, $mod);
+}
+
+function mod_ph(Context $ctx, $password) {
+	global $mod;
+	$config = $ctx->get('config');
+
+	if (isset($_POST['note'])) {
+		if (!hasPermission($config['mod']['create_notes']))
+			error($config['error']['noaccess']);
+
+		$_POST['note'] = escape_markup_modifiers($_POST['note']);
+		markup($_POST['note']);
+		$query = prepare('INSERT INTO ``password_notes`` VALUES (NULL, :password, :mod, :time, :body)');
+		$query->bindValue(':password', $password);
+		$query->bindValue(':mod', $mod['id']);
+		$query->bindValue(':time', time());
+		$query->bindValue(':body', $_POST['note']);
+		$query->execute() or error(db_error($query));
+		$passwordtrunc = substr($password, 0, 8);
+		modLog("Added a password note for <a href=\"?/PH/{$password}\">{$passwordtrunc}</a>");
+
+		header('Location: ?/PH/' . $password . '#notes', true, $config['redirect_http']);
+		return;
+	}
+
+        $boards = listBoards();
+        foreach ($boards as $board) {
+                openBoard($board['uri']);
+                if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+                        continue;
+                $query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `password` = :password ORDER BY `sticky` DESC, `id` DESC LIMIT :limit', $board['uri']));
+                $query->bindValue(':password', $password);
+                $query->bindValue(':limit', $config['mod']['ip_recentposts'], PDO::PARAM_INT);
+                $query->execute() or error(db_error($query));
+
+                while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+                        if (!$post['thread']) {
+                                $po = new Thread($post, '?/', $mod, false);
+                        } else {
+                                $po = new Post($post, '?/', $mod);
+                        }
+
+                        if (!isset($args['posts'][$board['uri']]))
+                                $args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+                        $args['posts'][$board['uri']]['posts'][] = $po->build(true);
+                }
+        }
+
+	if (hasPermission($config['mod']['view_notes'])) {
+		$query = prepare("SELECT ``password_notes``.*, `username` FROM ``password_notes`` LEFT JOIN ``mods`` ON `mod` = ``mods``.`id` WHERE `password_notes`.`password` = :password ORDER BY `time` DESC");
+		$query->bindValue(':password', $password);
+		$query->execute() or error(db_error($query));
+		$args['notes'] = $query->fetchAll(PDO::FETCH_ASSOC);
+	}
+
+        $args['boards'] = $boards;
+        $args['token'] = make_secure_link_token('ban');
+
+        $args['logs'] = [];
+
+        $args['security_token'] = make_secure_link_token('PH/' . $password);
+
+        mod_page(sprintf('%s: %s', _('Password Hash'), htmlspecialchars($password)), $config['file_mod_view_ip'], $args, $mod);
+}
+function mod_uah(Context $ctx, $ua_hash) {
+        global $mod;
+        $config = $ctx->get('config');
+
+        $boards = listBoards();
+        foreach ($boards as $board) {
+                openBoard($board['uri']);
+                if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+                        continue;
+                $query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `ua_hash` = :ua_hash ORDER BY `sticky` DESC, `id` DESC LIMIT :limit', $board['uri']));
+                $query->bindValue(':ua_hash', $ua_hash);
+                $query->bindValue(':limit', $config['mod']['ip_recentposts'], PDO::PARAM_INT);
+                $query->execute() or error(db_error($query));
+
+                while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+                        if (!$post['thread']) {
+                                $po = new Thread($post, '?/', $mod, false);
+                        } else {
+                                $po = new Post($post, '?/', $mod);
+                        }
+
+                        if (!isset($args['posts'][$board['uri']]))
+                                $args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+                        $args['posts'][$board['uri']]['posts'][] = $po->build(true);
+                }
+        }
+
+        $args['boards'] = $boards;
+        $args['token'] = make_secure_link_token('ban');
+
+        $args['logs'] = [];
+
+        $args['security_token'] = make_secure_link_token('UAH/' . $ua_hash);
+
+        mod_page(sprintf('%s: %s', _('UA Hash'), htmlspecialchars($ua_hash)), $config['file_mod_view_ip'], $args, $mod);
+}
+
+function mod_header_search(Context $ctx, $uah, $alh) {
+	global $mod;
+	$config = $ctx->get('config');
+
+        $boards = listBoards();
+        foreach ($boards as $board) {
+                openBoard($board['uri']);
+                if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+                        continue;
+                $query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `ua_hash` = :uah AND `accept_language_hash` = :accept_language_hash ORDER BY `sticky` DESC, `id` DESC', $board['uri']));
+                $query->bindValue(':uah', $uah);
+		$query->bindValue(':accept_language_hash', $alh);
+                $query->execute() or error(db_error($query));
+
+		while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+			if (!$post['thread']) {
+				$po = new Thread($post, '?/', $mod, false);
+			} else {
+				$po = new Post($post, '?/', $mod);
+			}
+
+			if (!isset($args['posts'][$board['uri']]))
+				$args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+			$args['posts'][$board['uri']]['posts'][] = $po->build(true);
+		}
+        }
+
+        $args['boards'] = $boards;
+        $args['token'] = make_secure_link_token('ban');
+
+        $args['logs'] = [];
+
+        $args['security_token'] = make_secure_link_token('headers/' . $uah . $alh);
+
+        mod_page(sprintf('%s: %s', _('Header search'), htmlspecialchars($uah . '/' . $alh)), $config['file_mod_view_ip'], $args, $mod);
+}
+
+function mod_ch(Context $ctx, $chrome_hash) {
+        global $mod;
+        $config = $ctx->get('config');
+
+        $boards = listBoards();
+        foreach ($boards as $board) {
+                openBoard($board['uri']);
+                if (!hasPermission($config['mod']['show_ip'], $board['uri']))
+                        continue;
+                $query = prepare(sprintf('SELECT * FROM ``posts_%s`` WHERE `chrome_hash` = :chrome_hash ORDER BY `sticky` DESC, `id` DESC LIMIT :limit', $board['uri']));
+                $query->bindValue(':chrome_hash', $chrome_hash);
+                $query->bindValue(':limit', $config['mod']['ip_recentposts'], PDO::PARAM_INT);
+                $query->execute() or error(db_error($query));
+
+                while ($post = $query->fetch(PDO::FETCH_ASSOC)) {
+                        if (!$post['thread']) {
+                                $po = new Thread($post, '?/', $mod, false);
+                        } else {
+                                $po = new Post($post, '?/', $mod);
+                        }
+
+                        if (!isset($args['posts'][$board['uri']]))
+                                $args['posts'][$board['uri']] = array('board' => $board, 'posts' => []);
+                        $args['posts'][$board['uri']]['posts'][] = $po->build(true);
+                }
+        }
+
+        $args['boards'] = $boards;
+        $args['token'] = make_secure_link_token('ban');
+
+        $args['logs'] = [];
+
+        $args['security_token'] = make_secure_link_token('ALH/' . $chrome_hash);
+
+        mod_page(sprintf('%s: %s', _('Chrome Hash'), htmlspecialchars($chrome_hash)), $config['file_mod_view_ip'], $args, $mod);
 }
 
 function mod_edit_ban(Context $ctx, $ban_id) {
@@ -1664,7 +2357,7 @@ function mod_ban_post(Context $ctx, $board, $delete, $post, $token = false) {
 		Bans::new_ban($ip, $_POST['reason'], $_POST['length'], $_POST['board'] == '*' ? false : $_POST['board'],
 			false, $config['ban_show_post'] ? $_post : false);
 
-		if (isset($_POST['public_message'], $_POST['message'])) {
+		if (isset($_POST['public_message'], $_POST['message']) && false) {
 			// public ban message
 			$length_english = Bans::parse_time($_POST['length']) ? 'for ' . Format\until(Bans::parse_time($_POST['length'])) : 'permanently';
 			$_POST['message'] = preg_replace('/[\r\n]/', '', $_POST['message']);
@@ -2175,6 +2868,93 @@ function mod_users(Context $ctx) {
 	mod_page(sprintf('%s (%d)', _('Manage users'), count($users)), $config['file_mod_users'], [ 'users' => $users ], $mod);
 }
 
+function mod_account_list(Context $ctx) {
+	global $mod;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['manage_account_passkeys']))
+		error($config['error']['noaccess']);
+
+	$query = query('SELECT `id` FROM ``user_accounts`` ORDER BY `id`') or error(db_error());
+	$accounts = $query->fetchAll(PDO::FETCH_COLUMN);
+
+	mod_page(
+		_('User accounts'),
+		'mod/accounts.html',
+		[
+			'accounts' => $accounts,
+			'create_token' => make_secure_link_token('accounts/new'),
+			'delete_tokens' => array_map(function ($id) {
+				return make_secure_link_token('accounts/delete/' . $id);
+			}, $accounts)
+		],
+		$mod
+	);
+}
+
+function mod_account_new(Context $ctx) {
+	global $mod, $pdo;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['manage_account_passkeys']))
+		error($config['error']['noaccess']);
+
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		$password = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
+		$password_hash = password_hash($password, PASSWORD_DEFAULT);
+		if ($password_hash === false)
+			error('Could not securely hash the new account password.');
+
+		$query = prepare('INSERT INTO ``user_accounts`` (`password`) VALUES (:password)');
+		$query->bindValue(':password', $password_hash, PDO::PARAM_STR);
+		$query->execute() or error(db_error($query));
+		$user_id = (int)$pdo->lastInsertId();
+
+		modLog('Created standalone account <small>(#' . $user_id . ')</small>');
+
+		header('Cache-Control: no-store, private');
+		mod_page(
+			_('New user account'),
+			'mod/accounts.html',
+			[
+				'created_account' => [
+					'id' => $user_id,
+					'password' => $password
+				],
+				'create_token' => make_secure_link_token('accounts/new')
+			],
+			$mod
+		);
+		return;
+	}
+
+	mod_page(
+		_('New user account'),
+		'mod/accounts.html',
+		['create_token' => make_secure_link_token('accounts/new')],
+		$mod
+	);
+}
+
+function mod_account_delete(Context $ctx, $user_id) {
+	global $mod;
+	$config = $ctx->get('config');
+
+	if (!hasPermission($config['mod']['manage_account_passkeys']))
+		error($config['error']['noaccess']);
+	if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+		error($config['error']['csrf']);
+
+	$query = prepare('DELETE FROM ``user_accounts`` WHERE `id` = :id');
+	$query->bindValue(':id', (int)$user_id, PDO::PARAM_INT);
+	$query->execute() or error(db_error($query));
+	if ($query->rowCount() !== 1)
+		error($config['error']['404']);
+
+	modLog('Deleted user account <small>(#' . (int)$user_id . ')</small>');
+	header('Location: ?/accounts', true, $config['redirect_http']);
+}
+
 function mod_user_promote(Context $ctx, $uid, $action) {
 	$config = $ctx->get('config');
 
@@ -2228,10 +3008,12 @@ function mod_pm(Context $ctx, $id, $reply = false) {
 	$query->bindValue(':id', $id);
 	$query->execute() or error(db_error($query));
 
-	if ((!$pm = $query->fetch(PDO::FETCH_ASSOC)) || ($pm['to'] != $mod['id'] && !hasPermission($config['mod']['master_pm'])))
+	if ((!$pm = $query->fetch(PDO::FETCH_ASSOC)) || ($pm['to'] != $mod['id'] && $pm['sender'] != $mod['id'] && !hasPermission($config['mod']['master_pm'])))
 		error($config['error']['404']);
 
 	if (isset($_POST['delete'])) {
+		if ($pm['to'] != $mod['id'] && !hasPermission($config['mod']['master_pm']))
+			error($config['error']['noaccess']);
 		$query = prepare("DELETE FROM ``pms`` WHERE `id` = :id");
 		$query->bindValue(':id', $id);
 		$query->execute() or error(db_error($query));
@@ -2303,6 +3085,35 @@ function mod_inbox(Context $ctx) {
 		],
 		$mod
 	);
+}
+
+
+function mod_outbox(Context $ctx) {
+    global $mod;
+    $config = $ctx->get('config');
+
+    $query = prepare('SELECT `pms`.`id`, `time`, `sender`, `to`, `message`, `username`
+        FROM `pms`
+        LEFT JOIN `mods` ON `mods`.`id` = `to`
+        WHERE `sender` = :mod
+        ORDER BY `time` DESC');
+
+    $query->bindValue(':mod', $mod['id']);
+    $query->execute() or error(db_error($query));
+    $messages = $query->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($messages as &$message) {
+        $message['snippet'] = pm_snippet($message['message']);
+    }
+
+    mod_page(
+        _('PM outbox'),
+        $config['file_mod_outbox'],
+        [
+            'messages' => $messages
+        ],
+        $mod
+    );
 }
 
 

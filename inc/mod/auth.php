@@ -183,16 +183,55 @@ function modLog(string $action, ?string $_board = null): void {
 	$query->bindValue(':ip', $_SERVER['REMOTE_ADDR']);
 	$query->bindValue(':time', time(), PDO::PARAM_INT);
 	$query->bindValue(':text', $action);
-	if (isset($_board))
+	if (isset($_board)) {
 		$query->bindValue(':board', $_board);
-	elseif (isset($board))
+		$ml_board = $_board;
+	} elseif (isset($board)) {
 		$query->bindValue(':board', $board['uri']);
-	else
+		$ml_board = $board['uri'];
+	} else {
 		$query->bindValue(':board', null, PDO::PARAM_NULL);
+		$ml_board = "";
+	}
 	$query->execute() or error(db_error($query));
 
 	if ($config['syslog']) {
-		_syslog(LOG_INFO, '[mod/' . $mod['username'] . ']: ' . $action);
+		_syslog(LOG_INFO, '[mod/' . ($mod['username'] ?? 'system') . ']: ' . $action);
+	}
+	if ($config['use_discord_webhook']) {
+		$ml_webhookUrl = "https://discord.com/api/webhooks/1549917675927375942/0bqoP45Zi70FKjpvsza0rCwpoMZpVA57rkXvqRuM_ctJiohN_p9XE_ECVh_WCtP9URNf";
+		$ml_action = str_replace('`', '\\`', $action);
+		$ml_action = str_replace(["\r\n", "\r", "\n"], "\\n", $ml_action);
+		if (empty($ml_board))
+			$ml_board = "-";
+		if (!isset($mod['username']))
+			$ml_username = "system";
+		else
+			$ml_username = $mod['username'];
+
+		$ml_webhook_template = '`[' . $ml_board . '/' . $ml_username . ']: ' . $ml_action . '`';
+		$json_data = json_encode([
+			// Message
+			"content" => $ml_webhook_template,
+
+			// Username
+			//"username" => "$ml_username - Modlog",
+			"username" => "Modlog",
+			// Text-to-speech
+			"tts" => false,
+		], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+
+		$ch = curl_init($ml_webhookUrl);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
 	}
 }
 
