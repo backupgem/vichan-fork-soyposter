@@ -61,7 +61,24 @@ function createBoardlist($mod=false) {
 		$body = '[' . $body . ']';
 
 	$body = trim($body);
+	if ($mod) {
+		$body .= ' <span class="sub" data-description="mod">[ <a href="?/">dashboard</a> / ';
 
+		$query = query('SELECT COUNT(*) FROM ``file_approval``') or error(db_error($query));
+		$approval_count = $query->fetchColumn();
+
+		$body .= ' <a href="?/file_approval"';
+		if ($approval_count > 0) $body .= 'style="font-weight: bold; color: red"';
+		$body .= '>mpa: '.$approval_count .'</a> / ';
+
+
+		$query = query('SELECT COUNT(*) FROM ``reports``') or error(db_error($query));
+		$report_count = $query->fetchColumn();
+
+		$body .= ' <a href="?/reports"';
+		if ($report_count > 0) $body .= 'style="font-weight: bold; color: red"';
+		$body .= '>reports: '.$report_count .'</a> / <a href="?/recent/25">recent</a> ]</span>';
+	}
 	// Message compact-boardlist.js faster, so that page looks less ugly during loading
 	$top = "<script type='text/javascript'>if (typeof do_boardlist != 'undefined') do_boardlist();</script>";
 
@@ -337,7 +354,7 @@ function embed_html($link) {
 
 	return 'Embedding error.';
 }
-
+#[AllowDynamicProperties]
 class Post {
 	public function __construct($post, $root=null, $mod=false) {
 		global $config;
@@ -372,6 +389,13 @@ class Post {
 		$this->name = utf8tohtml($this->name);
 		$this->mod = $mod;
 		$this->root = $root;
+
+		if ($this->mod_id) {
+			$query = prepare("SELECT `username` FROM ``mods`` WHERE `id` = :id");
+			$query->bindValue(':id', $this->mod_id);
+			$query->execute() or error(db_error($query));
+			$this->mod_username = $query->fetchColumn();
+		}
 
 		if ($this->embed)
 			$this->embed = embed_html($this->embed);
@@ -434,6 +458,13 @@ class Thread {
 		$this->mod = $mod;
 		$this->root = $root;
 		$this->hr = $hr;
+
+		if ($this->mod_id) {
+			$query = prepare("SELECT `username` FROM ``mods`` WHERE `id` = :id");
+			$query->bindValue(':id', $this->mod_id);
+			$query->execute() or error(db_error($query));
+			$this->mod_username = $query->fetchColumn();
+		}
 
 		$this->posts = array();
 		$this->omitted = 0;

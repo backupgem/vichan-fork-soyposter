@@ -1,5 +1,58 @@
 <?php
 
+function test_proxy(string $ip): bool
+{
+    $url = 'https://meta.wikimedia.org/w/api.php?' . http_build_query([
+        'action' => 'query',
+        'list' => 'globalblocks',
+        'bgip' => $ip,
+        'bglimit' => 'max',
+        'bgprop' => 'reason',
+        'format' => 'json',
+    ]);
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_HTTPHEADER => [
+            'User-Agent: WikipediaBlockChecker/1.0 (contact@example.com)',
+        ],
+    ]);
+
+    $response = curl_exec($ch);
+
+    if ($response === false) {
+        curl_close($ch);
+        return false;
+    }
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        return false;
+    }
+
+    $data = json_decode($response, true);
+
+    if (!isset($data['query']['globalblocks'])) {
+        return false;
+    }
+
+    foreach ($data['query']['globalblocks'] as $block) {
+        $reason = $block['reason'] ?? '';
+
+        if (stripos($reason, 'webhost') !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 /*
  *  Copyright (c) 2010-2014 Tinyboard Development Group
  */
@@ -244,7 +297,7 @@ function loadConfig() {
 			event_handler('post', 'email_dice_roll');
 		}
 
-		if (in_array('webm', $config['allowed_ext_files']) || in_array('mp4',  $config['allowed_ext_files'])) {
+		if (in_array('webm', $config['allowed_ext_files']) || in_array('mp4',  $config['allowed_ext_files']) || in_array('mov', $config['allowed_ext_files'])) {
 			event_handler('post', 'postHandler');
 		}
 	}
@@ -279,7 +332,7 @@ function loadConfig() {
 	if ($config['cache']['enabled'])
 		require_once 'inc/cache.php';
 
-	if (in_array('webm', $config['allowed_ext_files']) || in_array('mp4',  $config['allowed_ext_files']))
+	if (in_array('webm', $config['allowed_ext_files']) || in_array('mp4',  $config['allowed_ext_files']) || in_array('mov', $config['allowed_ext_files']))
 		require_once 'inc/lib/webm/posthandler.php';
 
 	event('load-config');
@@ -678,7 +731,6 @@ function hasPermission($action = null, $board = null, $_mod = null) {
 
 	return true;
 }
-
 function listBoards($just_uri = false) {
 	global $config;
 
@@ -890,7 +942,7 @@ function insertFloodPost(array $post) {
 
 function post(array $post) {
 	global $pdo, $board;
-	$query = prepare(sprintf("INSERT INTO ``posts_%s`` VALUES ( NULL, :thread, :subject, :email, :name, :trip, :capcode, :body, :body_nomarkup, :time, :time, :files, :num_files, :filehash, :password, :ip, :sticky, :locked, :cycle, 0, :embed, :slug)", $board['uri']));
+	$query = prepare(sprintf("INSERT INTO ``posts_%s`` VALUES ( NULL, :thread, :subject, :email, :name, :trip, :capcode, :body, :body_nomarkup, :time, :time, :files, :num_files, :filehash, :password, :ip, :sticky, :locked, :cycle, 0, :embed, :slug, :accept_hash, :ua_hash, :accept_language_hash, :cf_ipcountry, :chrome_hash, :mod_id, :user_id)", $board['uri']));
 
 	// Basic stuff
 	if (!empty($post['subject'])) {
@@ -911,6 +963,44 @@ function post(array $post) {
 		$query->bindValue(':trip', null, PDO::PARAM_NULL);
 	}
 
+	if (!empty($post['mod_id'])) {
+		$query->bindValue(':mod_id', $post['mod_id']);
+	} else {
+		$query->bindValue(':mod_id', null, PDO::PARAM_NULL);
+	}
+	if (!empty($post['user_id'])) {
+		$query->bindValue(':user_id', $post['user_id'], PDO::PARAM_INT);
+	} else {
+		$query->bindValue(':user_id', null, PDO::PARAM_NULL);
+	}
+	// todo: remove accept_hash column
+	//if (!empty($post['accept_hash'])) {
+//		$query->bindValue(':accept_hash', $post['accept_hash']);
+	//} else {
+		$query->bindValue(':accept_hash', null, PDO::PARAM_NULL);
+	//}
+
+	if (!empty($post['ua_hash'])) {
+		$query->bindValue(':ua_hash', $post['ua_hash']);
+	} else {
+		$query->bindValue(':ua_hash', null, PDO::PARAM_NULL);
+	}
+
+        if (!empty($post['chrome_hash'])) {
+                $query->bindValue(':chrome_hash', $post['chrome_hash']);
+        } else {
+                $query->bindValue(':chrome_hash', null, PDO::PARAM_NULL);
+        }
+	if (!empty($post['accept_language_hash'])) {
+		$query->bindValue(':accept_language_hash', $post['accept_language_hash']);
+	} else {
+		$query->bindValue(':accept_language_hash', null, PDO::PARAM_NULL);
+	}
+	if (!empty($post['cf_ipcountry'])) {
+		$query->bindValue('cf_ipcountry', $post['cf_ipcountry']);
+	} else {
+		$query->bindValue('cf_ipcountry', null, PDO::PARAM_NULL);
+	}
 	$query->bindValue(':name', $post['name']);
 	$query->bindValue(':body', $post['body']);
 	$query->bindValue(':body_nomarkup', $post['body_nomarkup']);
@@ -977,7 +1067,32 @@ function post(array $post) {
 		error(db_error($query));
 	}
 
-	return $pdo->lastInsertId();
+	$post_id = $pdo->lastInsertId();
+	if (!empty($post['has_file'])) {
+		foreach ($post['files'] as $file) {
+			if (!isset($file['is_approved']) || $file['is_approved'])
+				continue;
+			if (!isset($file['hash'], $file['file']))
+				error(_('A pending file is missing its hash or filename.'));
+
+			$approval_query = prepare("INSERT INTO ``file_approval``
+				(`board`, `postid`, `hash`, `file`, `thumb`, `time`)
+				VALUES (:board, :postid, :hash, :file, :thumb, :time)
+				ON DUPLICATE KEY UPDATE `file` = VALUES(`file`), `thumb` = VALUES(`thumb`)");
+			$approval_query->bindValue(':board', $board['uri']);
+			$approval_query->bindValue(':postid', $post_id, PDO::PARAM_INT);
+			$approval_query->bindValue(':hash', $file['hash']);
+			$approval_query->bindValue(':file', $file['file']);
+			if (isset($file['thumb']))
+				$approval_query->bindValue(':thumb', $file['thumb']);
+			else
+				$approval_query->bindValue(':thumb', null, PDO::PARAM_NULL);
+			$approval_query->bindValue(':time', time(), PDO::PARAM_INT);
+			$approval_query->execute() or error(db_error($approval_query));
+		}
+	}
+
+	return $post_id;
 }
 
 function bumpThread($id) {
@@ -1007,6 +1122,7 @@ function deleteFile($id, $remove_entirely_if_already=true, $file=null) {
 		error($config['error']['invalidpost']);
 	$files = json_decode($post['files']);
 	$file_to_delete = $file !== false ? $files[(int)$file] : (object)array('file' => false);
+	$approval_hashes = array();
 
 	if (!$files[0]) error(_('That post has no files.'));
 
@@ -1020,6 +1136,9 @@ function deleteFile($id, $remove_entirely_if_already=true, $file=null) {
 	} else {
 		foreach ($files as $i => $f) {
 			if (($file !== false && $i == $file) || $file === null) {
+				if (isset($f->hash))
+					$approval_hashes[] = $f->hash;
+
 				// Delete thumbnail
 				if (isset ($f->thumb) && $f->thumb) {
 					file_unlink($board['dir'] . $config['dir']['thumb'] . $f->thumb);
@@ -1037,6 +1156,37 @@ function deleteFile($id, $remove_entirely_if_already=true, $file=null) {
 
 	$query->bindValue(':id', $id, PDO::PARAM_INT);
 	$query->execute() or error(db_error($query));
+
+	$remaining_files = array();
+	foreach ($files as $remaining_file) {
+		if ($remaining_file && $remaining_file->file !== 'deleted' && isset($remaining_file->hash))
+			$remaining_files[$remaining_file->hash] = $remaining_file;
+	}
+
+	$approval_query = prepare("DELETE FROM ``file_approval``
+		WHERE `board` = :board AND `postid` = :postid AND `hash` = :hash");
+	foreach ($approval_hashes as $hash) {
+		if (isset($remaining_files[$hash])) {
+			$update_approval = prepare("UPDATE ``file_approval``
+				SET `file` = :file, `thumb` = :thumb
+				WHERE `board` = :board AND `postid` = :postid AND `hash` = :hash");
+			$update_approval->bindValue(':file', $remaining_files[$hash]->file);
+			if (isset($remaining_files[$hash]->thumb))
+				$update_approval->bindValue(':thumb', $remaining_files[$hash]->thumb);
+			else
+				$update_approval->bindValue(':thumb', null, PDO::PARAM_NULL);
+			$update_approval->bindValue(':board', $board['uri']);
+			$update_approval->bindValue(':postid', $id, PDO::PARAM_INT);
+			$update_approval->bindValue(':hash', $hash);
+			$update_approval->execute() or error(db_error($update_approval));
+			continue;
+		}
+
+		$approval_query->bindValue(':board', $board['uri']);
+		$approval_query->bindValue(':postid', $id, PDO::PARAM_INT);
+		$approval_query->bindValue(':hash', $hash);
+		$approval_query->execute() or error(db_error($approval_query));
+	}
 
 	if ($post['thread'])
 		buildThread($post['thread']);
@@ -1071,6 +1221,7 @@ function rebuildPost($id) {
 }
 
 // Delete a post (reply or thread)
+
 function deletePost($id, $error_if_doesnt_exist=true, $rebuild_after=true) {
 	global $board, $config;
 
@@ -1123,6 +1274,13 @@ function deletePost($id, $error_if_doesnt_exist=true, $rebuild_after=true) {
 	$query = prepare(sprintf("DELETE FROM ``posts_%s`` WHERE `id` = :id OR `thread` = :id", $board['uri']));
 	$query->bindValue(':id', $id, PDO::PARAM_INT);
 	$query->execute() or error(db_error($query));
+
+	$approval_query = prepare("DELETE FROM ``file_approval`` WHERE `board` = :board AND `postid` = :postid");
+	foreach ($ids as $deleted_post_id) {
+		$approval_query->bindValue(':board', $board['uri']);
+		$approval_query->bindValue(':postid', $deleted_post_id, PDO::PARAM_INT);
+		$approval_query->execute() or error(db_error($approval_query));
+	}
 
 	$query = prepare("SELECT `board`, `post` FROM ``cites`` WHERE `target_board` = :board AND (`target` = " . implode(' OR `target` = ', $ids) . ") ORDER BY `board`");
 	$query->bindValue(':board', $board['uri']);
@@ -1417,6 +1575,24 @@ function make_comment_hex($str) {
 
 	// strip all non-alphabet characters
 	$str = preg_replace('/[^a-z]/', '', $str);
+
+	return md5($str);
+}
+
+function make_comment_hex_keep_arrows($str) {
+	// remove cross-board citations
+	$str = preg_replace('!>>>/[A-Za-z0-9]+/!', '', $str);
+
+	if (function_exists('iconv')) {
+		$oldstr = $str;
+		$str = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $str);
+		if (!$str) $str = $oldstr;
+	}
+
+	$str = strtolower($str);
+
+	// strip everything except letters and quote markers
+	$str = preg_replace('/[^a-z>]/', '', $str);
 
 	return md5($str);
 }
@@ -1998,7 +2174,11 @@ function markup(&$body, $track_cites = false, $op = false) {
 			}
 		}
 	}
-
+	$body = preg_replace(
+	    '/(^|[\s(])&gt;&gt;&gt;\/rules\/(?=[\s,.)?!]|$)/um',
+	    '$1<a href="https://soyposter.party/rules.html">&gt;&gt;&gt;/rules/</a>',
+	    $body
+	);
 	// Cross-board linking
 	if (preg_match_all('/(^|[\s(])&gt;&gt;&gt;\/(' . $config['board_regex'] . 'f?)\/(\d+)?((?=[\s,.)?!])|$)/um', $body, $cites, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
 		if (count($cites[0]) > $config['max_cites']) {
@@ -2107,6 +2287,7 @@ function markup(&$body, $track_cites = false, $op = false) {
 	$tracked_cites = array_unique($tracked_cites, SORT_REGULAR);
 
 	$body = preg_replace("/^\s*&gt;.*$/m", '<span class="quote">$0</span>', $body);
+	$body = preg_replace("/^\s*&lt;.*$/m", '<font color="#f6750b">$0</font>', $body);
 
 	if ($config['strip_superfluous_returns'])
 		$body = preg_replace('/\s+$/', '', $body);
@@ -2788,7 +2969,7 @@ function cloak_ip($ip) {
 	if (strlen($ipbytes) >= 16)
 		$ipbytes = substr($ipbytes, 0, 16);
 
-	$cyphertext = openssl_encrypt($ipbytes, 'aes-256-ctr', $ipcrypt_key, OPENSSL_RAW_DATA);
+	$cyphertext = @openssl_encrypt($ipbytes, 'aes-256-ctr', $ipcrypt_key, OPENSSL_RAW_DATA);
 
 	$ret = $config['ipcrypt_prefix'].':' . base32_encode($cyphertext);
 	if (isset($tld) && !empty($tld)) {
@@ -2890,4 +3071,23 @@ function get_urls($body) {
 	$result = preg_match_all("#$regex#i", $body, $match);
 
 	return $match[0];
+}
+function userLog(string $action, string $type, ?string $_board = null): void {
+	global $mod, $board, $config;
+	$query = prepare("INSERT INTO ``userlogs`` VALUES (:ip, :board, :time, :type, :text)");
+	$query->bindValue(':ip', $_SERVER['REMOTE_ADDR']);
+	$query->bindValue(':time', time(), PDO::PARAM_INT);
+	$query->bindValue(':type', $type);
+	$query->bindValue(':text', $action);
+	if (isset($_board)) {
+		$query->bindValue(':board', $_board);
+		$ml_board = $_board;
+	} elseif (isset($board)) {
+		$query->bindValue(':board', $board['uri']);
+		$ml_board = $board['uri'];
+	} else {
+		$query->bindValue(':board', null, PDO::PARAM_NULL);
+		$ml_board = "";
+	}
+	$query->execute() or error(db_error($query));
 }

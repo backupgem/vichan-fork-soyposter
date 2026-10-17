@@ -436,3 +436,54 @@ class ImageWEBP extends ImageBase {
 		imagewebp($this->image, $src);
 	}
 }
+
+/*class ImageWEBP extends ImageBase {
+	public function from() {
+		$this->image = @imagecreatefromwebp($this->src);
+
+		if ($this->image) {
+			imagealphablending($this->image, false);
+			imagesavealpha($this->image, true);
+		}
+	}
+
+	public function to($src) {
+		// WEBP quality: 50%
+		imagewebp($this->image, $src, 50);
+	}
+
+	public function resize() {
+		$this->GD_create();
+
+		// Transparent background
+		imagealphablending($this->image, false);
+
+		$transparent = imagecolorallocatealpha(
+			$this->image,
+			0,
+			0,
+			0,
+			127
+		);
+
+		imagefill($this->image, 0, 0, $transparent);
+
+		// Preserve alpha channel
+		imagesavealpha($this->image, true);
+
+		// Resize while preserving transparency
+		imagecopyresampled(
+			$this->image,
+			$this->original,
+			0,
+			0,
+			0,
+			0,
+			$this->width,
+			$this->height,
+			$this->original_width,
+			$this->original_height
+		);
+	}
+}
+*/

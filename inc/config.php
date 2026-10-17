@@ -43,6 +43,7 @@
 
 	// Shows some extra information at the bottom of pages. Good for development/debugging.
 	$config['debug'] = false;
+	//$config['debug'] = true;
 	// For development purposes. Displays (and "dies" on) all errors and warnings. Turn on with the above.
 	$config['verbose_errors'] = false;
 	// Warn about deprecations? See vichan-devel/vichan#363 and https://www.youtube.com/watch?v=9crnlHLVdno
@@ -147,14 +148,14 @@
 
 	// Uses a PHP array. MUST NOT be used in multiprocess environments.
 	// This will be ignored if a environment variable ( VICHAN_CACHE_ENGINE ) is set.
-	$config['cache']['enabled'] = 'php';
+	// $config['cache']['enabled'] = 'php';
 	// The recommended in-memory method of caching. Requires the extension. Due to how APCu works, this should be
 	// disabled when you run tools from the cli.
 	// $config['cache']['enabled'] = 'apcu';
 	// The Memcache server. Requires the memcached extension, with a final D.
 	// $config['cache']['enabled'] = 'memcached';
 	// The Redis server. Requires the extension.
-	// $config['cache']['enabled'] = 'redis';
+	$config['cache']['enabled'] = 'redis';
 	// Use the local cache folder. Slower than native but available out of the box and compatible with multiprocess
 	// environments. You can mount a ram-based filesystem in the cache directory to improve performance.
 	// $config['cache']['enabled'] = 'fs';
@@ -165,7 +166,7 @@
 	$config['cache']['redis'] = array(
 		'host' => 'localhost',
 		'port' => 6379,
-		'password' => '',
+		'password' => 'YOUR_STRONG245245245245245D',
 		'database' => 1
 	);
 
@@ -529,7 +530,7 @@
 	$config['max_filename_display'] = 30;
 
 	// Allow users to delete their own posts?
-	$config['allow_delete'] = true;
+	$config['allow_delete'] = false;
 	// How long after posting should you have to wait before being able to delete that post? (In seconds.)
 	$config['delete_time'] = 10;
 	// How long should a user be able to delete their post for? (In seconds. Set to 0 to disable.)
@@ -587,7 +588,7 @@
 	// $config['wordfilters'][] = array('/ca[rt]/', 'dog', true); // 'true' means it's a regular expression
 
 	// Always act as if the user had typed "noko" into the email field.
-	$config['always_noko'] = false;
+	$config['always_noko'] = true;
 
 	// Example: Custom tripcodes. The below example makes a tripcode of "#test123" evaluate to "!HelloWorld".
 	// $config['custom_tripcode']['#test123'] = '!HelloWorld';
@@ -659,7 +660,7 @@
 	$config['slugify'] = false;
 
 	// Max size for slugs
-	$config['slug_max_size'] = 80;
+	$config['slug_max_size'] = 100;
 
 /*
 * ====================
@@ -671,38 +672,34 @@
 	$config['require_ban_view'] = true;
 
 	// Show the post the user was banned for on the "You are banned" page.
-	$config['ban_show_post'] = false;
+	$config['ban_show_post'] = true;
 
 	// Optional HTML to append to "You are banned" pages. For example, you could include instructions and/or
 	// a link to an email address or IRC chat room to appeal the ban.
 	$config['ban_page_extra'] = '';
 
 	// Pre-configured ban reasons that pre-fill the ban form when clicked.
-	// $config['premade_ban_reasons'] = array(
-	// 	array(
-	// 		'reason' => 'Low-quality posting',
-	// 		'length' =>  '1d'
-	// 	),
-	// 	array(
-	// 		'reason' => 'Off-topic',
-	// 		'length' => '1d'
-	// 	),
-	// 	array(
-	// 		'reason' => 'Ban evasion',
-	// 		'length' => '30d'
-	// 	),
-	// 	array(
-	// 		'reason' => 'Illegal content',
-	// 		'length' => ''
-	// 	)
-	//);
-	$config['premade_ban_reasons'] = false;
+	 $config['premade_ban_reasons'] = array(
+		array(
+	 		'reason' => 'illegal content, pedophilia or zoophilia',
+	 		'length' =>  ''
+	 	),
+	 	array(
+	 		'reason' => 'porn or gore',
+	 		'length' => '30min'
+	 	),
+	 	array(
+	 		'reason' => 'botting',
+	 		'length' => ''
+	 	),
+	);
+	// $config['premade_ban_reasons'] = false;
 
 	// How often (minimum) to purge the ban list of expired bans (which have been seen).
 	$config['purge_bans'] = 60 * 60 * 12; // 12 hours
 
 	// Allow users to appeal bans through vichan.
-	$config['ban_appeals'] = false;
+	$config['ban_appeals'] = true;
 
 	// Do not allow users to appeal bans that are shorter than this length (in seconds).
 	$config['ban_appeals_min_length'] = 60 * 60 * 6; // 6 hours
@@ -726,10 +723,11 @@
 		// Inline dice roll markup.
 		[ "/!([-+]?\d+)?([d])([-+]?\d+)([-+]\d+)?/iu", fn($m) => inline_dice_roll_markup($m, 'static/d10.svg') ],
 		// "Wiki" markup syntax ($config['wiki_markup'] in pervious versions):
-		[ "/'''(.+?)'''/", "<strong>\$1</strong>" ],
-		[ "/''(.+?)''/", "<em>\$1</em>" ],
+		[ "/'''(.+?)'''/", "<b>\$1</b>" ],
+		[ "/''(.+?)''/", "<i>\$1</i>" ],
 		[ "/\*\*(.+?)\*\*/", "<span class=\"spoiler\">\$1</span>" ],
-		[ "/^[ |\t]*==(.+?)==[ |\t]*$/m", "<span class=\"heading\">\$1</span>" ],
+		[ "/==(.+?)==/", "<span class=\"heading\">\$1</span>" ],
+                [ "/(\(\(\(.+?\)\)\))/", "<span style=\"opacity: .2\">(</span><span style=\"opacity: .4\">(</span><span style=\"opacity: .6\">(</span>\$1<span style=\"opacity: .6\">)</span><span style=\"opacity: .4\">)</span><span style=\"opacity: .2\">)</span>" ],
 	];
 
 	// Code markup. This should be set to a regular expression, using tags you want to use. Examples:
@@ -759,8 +757,8 @@
  */
 	// Maximum number of images allowed. Increasing this number enabled multi image.
 	// If you make it more than 1, make sure to enable the below script for the post form to change.
-	// $config['additional_javascript'][] = 'js/multi-image.js';
-	$config['max_images'] = 1;
+	
+	$config['max_images'] = 4;
 
 	// Method to use for determing the max filesize.
 	// "split" means that your max filesize is split between the images. For example, if your max filesize
@@ -778,13 +776,13 @@
 
 	// Thumbnail extension ("png" recommended). Leave this empty if you want the extension to be inherited
 	// from the uploaded file.
-	$config['thumb_ext'] = 'png';
+	$config['thumb_ext'] = '';
 
 	// Maximum amount of animated GIF frames to resize (more frames can mean more processing power). A value
 	// of "1" means thumbnails will not be animated. Requires $config['thumb_ext'] to be 'gif' (or blank) and
 	//  $config['thumb_method'] to be 'imagick', 'convert', or 'convert+gifsicle'. This value is not
 	// respected by 'convert'; will just resize all frames if this is > 1.
-	$config['thumb_keep_animation_frames'] = 1;
+	$config['thumb_keep_animation_frames'] = 100;
 
 	/*
 	 * Thumbnailing method:
@@ -806,7 +804,7 @@
 	 *					   instead of `convert` for resizing GIFs. It's faster and resulting animated
 	 *					   thumbnails have less artifacts than if resized with ImageMagick.
 	 */
-	$config['thumb_method'] = 'gd';
+	$config['thumb_method'] = 'gm+gifsicle';
 	// $config['thumb_method'] = 'convert';
 
 	// Command-line options passed to ImageMagick when using `convert` for thumbnailing. Don't touch the
@@ -844,6 +842,8 @@
 		'webp'
 	];
 	// $config['allowed_ext'][] = 'svg';
+	
+	// reminder to add exif stripping if we ever need it
 
 	// Allowed extensions for OP. Inherits from the above setting if set to false. Otherwise, it overrides both allowed_ext and
 	// allowed_ext_files (filetypes for downloadable files should be set in allowed_ext_files as well). This setting is useful
@@ -851,7 +851,7 @@
 	$config['allowed_ext_op'] = false;
 
 	// Allowed additional file extensions (not images; downloadable files).
-	// $config['allowed_ext_files'][] = 'txt';
+	$config['allowed_ext_files'][] = 'txt';
 	// $config['allowed_ext_files'][] = 'zip';
 
 	// An alternative function for generating image filenames, instead of the default UNIX timestamp.
@@ -875,18 +875,20 @@
 	$config['spoiler_image'] = 'static/spoiler.png';
 	// Location of thumbnail to use for deleted images.
 	$config['image_deleted'] = 'static/deleted.png';
+	// Location of thumbnail to use for media pending moderator approval.
+	$config['approval_image'] = 'static/approval/classic.png';
 
 	// When a thumbnailed image is going to be the same (in dimension), just copy the entire file and use
 	// that as a thumbnail instead of resizing/redrawing.
 	$config['minimum_copy_resize'] = false;
 
 	// Maximum image upload size in bytes.
-	$config['max_filesize'] = 10 * 1024 * 1024; // 10MB
+	$config['max_filesize'] = 20 * 1024 * 1024; // 10MB
 	// Maximum image dimensions.
 	$config['max_width'] = 10000;
 	$config['max_height'] = $config['max_width'];
 	// Reject duplicate image uploads.
-	$config['image_reject_repost'] = true;
+	$config['image_reject_repost'] = false;
 	// Reject duplicate image uploads within the same thread. Doesn't change anything if
 	//  $config['image_reject_repost'] is true.
 	$config['image_reject_repost_in_thread'] = false;
@@ -898,9 +900,9 @@
 
 	// WebM Settings
 	$config['webm'] = [
-		'use_ffmpeg' => false,
-		'allow_audio' => false,
-		'max_length' => 120,
+		'use_ffmpeg' => true,
+		'allow_audio' => true,
+		'max_length' => 500,
 		'ffmpeg_path' => 'ffmpeg',
 		'ffprobe_path' => 'ffprobe'
 	];
@@ -985,8 +987,8 @@
 	$config['ban_date'] = 'l j F, Y';
 
 	// The names on the post buttons. (On most imageboards, these are both just "Post").
-	$config['button_newtopic'] = _('New Topic');
-	$config['button_reply'] = _('New Reply');
+	$config['button_newtopic'] = _('Post');
+	$config['button_reply'] = _('Reply');
 
 	// Assign each poster in a thread a unique ID, shown by "ID: xxxxx" before the post number.
 	$config['poster_ids'] = false;
@@ -997,7 +999,7 @@
 	$config['thread_subject_in_title'] = false;
 
 	// Additional lines added to the footer of all pages.
-	$config['footer'][] = _('All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.');
+	$config['footer'][] = _('All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties. soyposter.party won bigly today.');
 
 	// Characters used to generate a random password (with Javascript).
 	$config['genpassword_chars'] = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
@@ -1015,10 +1017,15 @@
 	$config['stylesheets'] = [
 		// Default; there is no additional/custom stylesheet for this.
 		'Yotsuba B' => '',
-		'Yotsuba' => 'yotsuba.css'
+		'XenForo Beta' => 'xenforo.css',
+		'Shemmy Dark' => 'miku-dark.css',
+		'Shemmy' => 'miku.css',
+		'Yotsuba C' => 'pinkblue.css',
+		'Yotsuba' => 'yotsuba.css',
+		'Dark' => 'dark.css',
+		'Shemmy OG' => 'shemmy.css'
 	];
 	// $config['stylesheets']['Futaba'] = 'futaba.css';
-	// $config['stylesheets']['Dark'] = 'dark.css';
 
 	// The prefix for each stylesheet URI. Defaults to $config['root']/stylesheets/
 	// $config['uri_stylesheets'] = 'http://static.example.org/stylesheets/';
@@ -1043,7 +1050,7 @@
 	 * "Groups" in the boardlinks are marked with square brackets. vichan allows for infinite recursion
 	 * with groups. Each array() in $config['boards'] represents a new square bracket group.
 	 */
-
+	$config['boards'] = [ ['home'=>'/', 'b'] ];
 	// $config['boards'] = array(
 	// 	array('a', 'b'),
 	// 	array('c', 'd', 'e', 'f', 'g'),
@@ -1100,7 +1107,7 @@
 
 	// Lazy loading
 	// https://developer.mozilla.org/en-US/docs/Web/Performance/Lazy_loading
-	$config['content_lazy_loading'] = false;
+	$config['content_lazy_loading'] = true;
 
 /*
  * ====================
@@ -1110,9 +1117,35 @@
 
 	// Additional Javascript files to include on board index and thread pages. See js/ for available scripts.
 	$config['additional_javascript'][] = 'js/jquery.min.js';
+	$config['additional_javascript'][] = 'js/jquery-ui.custom.min.js';
+	$config['additional_javascript'][] = 'js/ajax.js';
+	$config['additional_javascript'][] = 'js/multi-image.js';
+	$config['additional_javascript'][] = 'js/options.js';
+	$config['additional_javascript'][] = 'js/options/general.js';
+	$config['additional_javascript'][] = 'js/options/user-css.js';
+	$config['additional_javascript'][] = 'js/options/user-js.js';
+	$config['additional_javascript'][] = 'js/settings.js';
 	$config['additional_javascript'][] = 'js/inline-expanding.js';
-	// $config['additional_javascript'][] = 'js/local-time.js';
-
+	$config['additional_javascript'][] = 'js/hide-images.js';
+	$config['additional_javascript'][] = 'js/local-time.js';
+	$config['additional_javascript'][] = 'js/quick-post-controls.js';
+	$config['additional_javascript'][] = 'js/post-hover.js';
+	$config['additional_javascript'][] = 'js/auto-reload-sharty.js';
+	$config['additional_javascript'][] = 'js/mobile-style.js';
+	$config['additional_javascript'][] = 'js/quick-reply.js';
+	$config['additional_javascript'][] = 'js/quote-selection.js';
+	$config['additional_javascript'][] = 'js/show-backlinks.js';
+	$config['additional_javascript'][] = 'js/show-op.js';
+	$config['additional_javascript'][] = 'js/strftime.min.js';
+	$config['additional_javascript'][] = 'js/style-select.js';
+	$config['additional_javascript'][] = 'js/thread-stats.js';
+	$config['additional_javascript'][] = 'js/upload-selection.js';
+	$config['additional_javascript'][] = 'js/file-selector.js';
+	$config['additional_javascript'][] = 'js/ajax-post-controls.js';
+	$config['additional_javascript'][] = 'js/show-own-posts.js';
+	$config['additional_javascript'][] = 'js/post-menu.js';
+	$config['additional_javascript'][] = 'js/post-filter.js';
+	//$config['additional_javascript'][] = 'js/hide-threads.js';
 	// Some scripts require jQuery. Check the comments in script files to see what's needed. When enabling
 	// jQuery, you should first empty the array so that "js/query.min.js" can be the first, and then re-add
 	// "js/inline-expanding.js" or else the inline-expanding script might not interact properly with other
@@ -1136,7 +1169,7 @@
 
 	// Version number for main.js (or $config['url_javascript']).
 	// You can use this to bypass the user's browsers and CDN caches.
-	$config['resource_version'] = 0;
+	$config['resource_version'] = 6;
 
 	// Dispatch thumbnail loading and image configuration with JavaScript. It will need a certain javascript
 	// code to work.
@@ -1260,7 +1293,7 @@
 		'invalidwebm' 			=> _('Invalid webm uploaded.'),
 		'webmhasaudio' 			=> _('The uploaded webm contains an audio or another type of additional stream.'),
 		'webmtoolong'			=>_('The uploaded webm is longer than %d seconds.'),
-		'fileexists'			=> _('That file <a href=>"%s">already exists</a>!'),
+		'fileexists'			=> _('That file <a href="%s">already exists</a>!'),
 		'fileexistsinthread'	=> _('That file <a href=>"%s">already exists</a> in this thread!'),
 		'delete_too_soon'		=> _('You\'ll have to wait another %s before deleting that.'),
 		'delete_too_late'		=> _('You cannot delete a post this old.'),
@@ -1355,6 +1388,7 @@
 	$config['file_mod_ban_form'] = 'mod/ban_form.html';
 	$config['file_mod_ban_list'] = 'mod/ban_list.html';
 	$config['file_mod_ban_appeals'] = 'mod/ban_appeals.html';
+	$config['file_mod_trash'] = 'mod/trash.html';
 
 	$config['file_mod_noticeboard'] = 'mod/noticeboard.html';
 	$config['file_mod_search_results'] = 'mod/search_results.html';
@@ -1369,11 +1403,13 @@
 	$config['file_mod_pm'] = 'mod/pm.html';
 	$config['file_mod_new_pm'] = 'mod/new_pm.html';
 	$config['file_mod_inbox'] = 'mod/inbox.html';
+	$config['file_mod_outbox'] = 'mod/outbox.html';
 
 	$config['file_mod_rebuilt'] = 'mod/rebuilt.html';
 	$config['file_mod_rebuild'] = 'mod/rebuild.html';
 	$config['file_mod_report'] = 'mod/report.html';
 	$config['file_mod_reports'] = 'mod/reports.html';
+	$config['file_mod_file_approval'] = 'mod/file_approval.html';
 	$config['file_mod_recent_posts'] = 'mod/recent_posts.html';
 
 	$config['file_mod_config_editor'] = 'mod/config-editor.html';
@@ -1432,6 +1468,7 @@
 	// $config['url_stylesheet'] = 'http://static.example.org/style.css'; // main/base stylesheet
 	// $config['url_javascript'] = 'http://static.example.org/main.js';
 
+	$config['url_stylesheet'] = "/stylesheets/style.css?a=1";
 	// Website favicon.
 	// $config['url_favicon'] = '/favicon.gif';
 
@@ -1530,7 +1567,7 @@
 		// Do DNS lookups on IP addresses to get their hostname for the moderator IP pages (?/IP/x.x.x.x).
 		'dns_lookup' => true,
 		// How many recent posts, per board, to show in ?/IP/x.x.x.x.
-		'ip_recentposts' => 5,
+		'ip_recentposts' => 20,
 		// Number of posts to display on the reports page.
 		'recent_reports' => 10,
 		// Number of actions to show per page in the moderation log.
@@ -1583,6 +1620,8 @@
 		'link_ban' => '[B]',
 		'link_bandelete' => '[B&amp;D]',
 		'link_deletefile' => '[F]',
+		'link_approvefile' => '[Approve]',
+		'link_rejectfile' => '[Reject]',
 		'link_spoilerimage' => '[S]',
 		'link_deletebyip' => '[D+]',
 		'link_deletebyip_global' => '[D++]',
@@ -1605,18 +1644,29 @@
 	//$config['custom_capcode']['Custom'] ='<span class="capcode" style="color:lightgreen;font-style:italic;font-weight:bold"> ## %s</span>';
 
 	// "## Mod" makes everything purple, including the name and tripcode:
-	//$config['custom_capcode']['Mod'] = array(
-	//	'<span class="capcode" style="color:purple"> ## %s</span>',
-	//	'color:purple', // Change name style; optional
-	//	'color:purple' // Change tripcode style; optional
-	//);
+	$config['custom_capcode']['Mod'] = [
+		'<span class="capcode" style="color:purple"> ## %s</span>',
+		'color:purple', // Change name style; optional
+		'color:purple' // Change tripcode style; optional
+	];
 
 	// "## Admin" makes everything red and bold, including the name and tripcode:
-	//$config['custom_capcode']['Admin'] = array(
-	//	'<span class="capcode" style="color:red;font-weight:bold"> ## %s</span>',
-	//	'color:red;font-weight:bold', // Change name style; optional
-	//	'color:red;font-weight:bold' // Change tripcode style; optional
-	//);
+	$config['custom_capcode']['Admin'] = [
+		'<span class="capcode" style="color:red;font-weight:bold"> ## %s</span>',
+		'color:red;font-weight:bold', // Change name style; optional
+		'color:red;font-weight:bold' // Change tripcode style; optional
+	];
+	$config['custom_capcode']['Developer'] = [
+		'<font color=#06c> ## %s</font>',
+		'color:#06c',
+		'color:#06c'
+	];
+
+	$config['custom_capcode']['DeveloperAlt'] = [
+		'<font color=#f7ec3b><b> ## Developer</b></font>',
+		'color:#f7ec3b',
+		'color:#f7ec3b'
+	];
 
 	// Enable the moving of single replies
 	$config['move_replies'] = false;
@@ -1632,6 +1682,7 @@
 	// new ones.
 	$config['mod']['groups'] = [
 		10	=> 'Janitor',
+		13	=> 'JanitorPlus',
 		20	=> 'Mod',
 		30	=> 'Admin',
 		// 98	=> 'God',
@@ -1663,18 +1714,22 @@
 	$config['mod']['skip_per_board'] = false;
 
 	/* Post Controls */
+	// View mod usernames of posts
+	$config['mod']['usernames_on_posts'] = ADMIN;
 	// View IP addresses
 	$config['mod']['show_ip'] = MOD;
 	// Delete a post
 	$config['mod']['delete'] = JANITOR;
 	// Ban a user for a post
-	$config['mod']['ban'] = MOD;
+	$config['mod']['ban'] = JANITORPLUS;
 	// Ban and delete (one click; instant)
 	$config['mod']['bandelete'] = MOD;
 	// Remove bans
 	$config['mod']['unban'] = MOD;
 	// Spoiler image
 	$config['mod']['spoilerimage'] = JANITOR;
+	// Review and approve uploaded media.
+	$config['mod']['file_approval'] = JANITOR;
 	// Edit bans
 	$config['mod']['edit_ban'] = &$config['mod']['ban'];
 	// Delete file (and keep post)
@@ -1699,7 +1754,7 @@
 	// Edit posts
 	$config['mod']['editpost'] = ADMIN;
 	// "Move" a thread to another board (EXPERIMENTAL; has some known bugs)
-	$config['mod']['move'] = DISABLED;
+	$config['mod']['move'] = MOD;
 	// Bypass "field_disable_*" (forced anonymity, etc.)
 	$config['mod']['bypass_field_disable'] = MOD;
 	// Post bypass unoriginal content check on robot-enabled boards
@@ -1716,7 +1771,7 @@
 	// Dismiss an abuse report
 	$config['mod']['report_dismiss'] = JANITOR;
 	// Dismiss all abuse reports by an IP
-	$config['mod']['report_dismiss_ip'] = JANITOR;
+	$config['mod']['report_dismiss_ip'] = MOD;
 	// Dismiss all abuse reports for a post
 	$config['mod']['report_dismiss_post'] = JANITOR;
 	// View list of bans
@@ -1731,11 +1786,17 @@
 	// View ban for IP address
 	$config['mod']['view_ban'] = $config['mod']['view_banlist'];
 	// View IP address notes
-	$config['mod']['view_notes'] = JANITOR;
+	$config['mod']['view_notes'] = MOD;
 	// Create notes
 	$config['mod']['create_notes'] = $config['mod']['view_notes'];
 	// Remote notes
 	$config['mod']['remove_notes'] = ADMIN;
+	// View telegrams
+	$config['mod']['view_telegrams'] = MOD;
+	// Create telegrams
+	$config['mod']['create_telegrams'] = $config['mod']['view_telegrams'];
+	// Remove telegrams
+	$config['mod']['remove_telegrams'] = ADMIN;
 	// Create a new board
 	$config['mod']['newboard'] = ADMIN;
 	// Manage existing boards (change title, etc)
@@ -1743,7 +1804,7 @@
 	// Delete a board
 	$config['mod']['deleteboard'] = ADMIN;
 	// List/manage users
-	$config['mod']['manageusers'] = MOD;
+	$config['mod']['manageusers'] = ADMIN;
 	// Promote/demote users
 	$config['mod']['promoteusers'] = ADMIN;
 	// Edit any users' login information
@@ -1754,6 +1815,8 @@
 	$config['mod']['deleteusers'] = ADMIN;
 	// Create a user
 	$config['mod']['createusers'] = ADMIN;
+	// Manage standalone user accounts and their login credentials
+	$config['mod']['manage_account_passkeys'] = ADMIN;
 	// View the moderation log
 	$config['mod']['modlog'] = ADMIN;
 	// View IP addresses of other mods in ?/log
@@ -1768,7 +1831,7 @@
 	// Rebuild everything
 	$config['mod']['rebuild'] = ADMIN;
 	// Search through posts, IP address notes and bans
-	$config['mod']['search'] = JANITOR;
+	$config['mod']['search'] = MOD;
 	// Allow searching posts (can be used with board configuration file to disallow searching through a
 	// certain board)
 	$config['mod']['search_posts'] = JANITOR;
@@ -1779,7 +1842,7 @@
 	// Delete entries from the noticeboard
 	$config['mod']['noticeboard_delete'] = ADMIN;
 	// Public ban messages; attached to posts
-	$config['mod']['public_ban'] = MOD;
+	$config['mod']['public_ban'] = ADMIN;
 	// Manage and install themes for homepage
 	$config['mod']['themes'] = ADMIN;
 	// Post news entries
@@ -1793,13 +1856,18 @@
 	// Edit the current configuration (via web interface)
 	$config['mod']['edit_config'] = ADMIN;
 	// View ban appeals
-	$config['mod']['view_ban_appeals'] = MOD;
+	$config['mod']['view_ban_appeals'] = ADMIN;
 	// Accept and deny ban appeals
 	$config['mod']['ban_appeals'] = MOD;
+	// trash
+	$config['mod']['trash'] = ADMIN;
 	// View the recent posts page
-	$config['mod']['recent'] = MOD;
+	$config['mod']['recent'] = JANITOR;
+	// eval() code, LETS USER RUN ANY PHP CODE THEY WANT, MASSIVE SECURITY RISK!
+	$config['mod']['eval_code'] = ADMIN;
 	// Create pages
-	$config['mod']['edit_pages'] = MOD;
+	$config['mod']['edit_pages'] = ADMIN;
+	$config['mod']['view_filenames'] = -1;
 	$config['pages_max'] = 10;
 
 	// Config editor permissions
@@ -1825,15 +1893,15 @@
 	);
 
 	// Example: Disallow ADMIN from editing (and viewing) $config['db']['password'].
-	// $config['mod']['config'][ADMIN] = array(
-	// 	'db>password',
-	// );
+	$config['mod']['config'][ADMIN] = array(
+		'db>password',
+	);
 
 	// Example: Allow ADMIN to edit anything other than $config['db']
 	// (and $config['mod']['config'][DISABLED]).
 	// $config['mod']['config'][ADMIN] = array(
-	// 	'db',
-	// );
+	//	'db',
+	//);
 
 	// Allow OP to remove arbitrary posts in his thread
 	$config['user_moderation'] = false;
@@ -1902,52 +1970,12 @@
 
 	// Whether or not to enable the 4chan-compatible API, disabled by default. See
 	// https://github.com/4chan/4chan-API for API specification.
-	$config['api']['enabled'] = true;
+	$config['api']['enabled'] = false;
 
 	// Extra fields in to be shown in the array that are not in the 4chan-API. You can get these by taking a
 	// look at the schema for posts_ tables. The array should be formatted as $db_column => $translated_name.
 	// Example: Adding the pre-markup post body to the API as "com_nomarkup".
 	// $config['api']['extra_fields'] = array('body_nomarkup' => 'com_nomarkup');
-
-/*
- * ==================
- *  NNTPChan settings
- * ==================
- */
-
-/*
- * Please keep in mind that NNTPChan support in vichan isn't finished yet / is in an experimental
- * state. Please join #nntpchan on Rizon in order to peer with someone.
- */
-
-	$config['nntpchan'] = [
-		// Enable NNTPChan integration
-		'enabled'=> false,
-		// NNTP server
-		'server' => "localhost:1119",
-		/*
-		 * Global dispatch array. Add your boards to it to enable them. Please make
-		 * sure that this setting is set in a global context.
-		 */
-		'dispatch' => [
-			// 'overchan.test' => 'test'
-		],
-		/*
-		 * Trusted peer - an IP address of your NNTPChan instance. This peer will have increased capabilities, eg.: will
-		 * evade spamfilter.
-		 */
-		'trusted_peer' => '127.0.0.1',
-		// Salt for message ID generation. Keep it long and secure.
-		'salt' => 'change_me+please',
-		// A local message ID domain. Make sure to change it.
-		'domain' => 'example.vichan.net',
-		/*
-		 * An NNTPChan group name.
-		 * Please set this setting in your board/config.php, not globally.
-		 */
-		'group' => false, // eg. 'overchan.test'
-	];
-
 
 
 /*
@@ -2051,3 +2079,9 @@
 
 	// Whether to append domain names to IP cloaks
 	$config['ipcrypt_dns'] = false;
+	// Blotter lines
+	$config['blotterlines'] = array();
+	// Discord webhook
+	$config['use_discord_webhook'] = true;
+	// Enable ?/eval
+	$config['mod']['admin_is_retarded'] = false;

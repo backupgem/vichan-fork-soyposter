@@ -46,7 +46,7 @@ class Filter {
 								}
 								break;
 							case 'body':
-								if ($flood_post['posthash'] != make_comment_hex($post['body_nomarkup'])) {
+								if ($flood_post['posthash'] != make_comment_hex_keep_arrows($post['body_nomarkup'])) {
 									continue 3;
 								}
 								break;
