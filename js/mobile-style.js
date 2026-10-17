@@ -19,3 +19,7 @@ else {
 	$('html').addClass("desktop-style");
 	device_type = "desktop";
 }
+
+if(navigator.userAgent.match(/iPhone|iPod|iPad/i)) {
+	$('html').addClass("itoddler-style");
+}
