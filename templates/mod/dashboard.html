@@ -1,6 +1,11 @@
-{% if config.url_banner %}<img class="board_image" src="{{ config.url_banner }}" {% if config.banner_width or config.banner_height %}style="{% if config.banner_width %}width:{{ config.banner_width }}px{% endif %};{% if config.banner_width %}height:{{ config.banner_height }}px{% endif %}" {% endif %}alt="" />{% endif %}
-<fieldset>
-	<legend>{% trans 'Boards' %}</legend>
+{% if config.url_banner %}<img class="board_image" src="{{ config.url_banner }}" {% if config.banner_width or config.banner_height %}style="{% if config.banner_width %}width:{{ config.banner_width }}px{% endif %};{% if config.banner_height %}height:{{ config.banner_height }}px{% endif %}" {% endif %}alt="" />{% endif %}
+<style>
+	.ban {
+		max-width: 800px !important;
+	}
+</style>
+<div class="ban">
+	<h2>{% trans 'Boards' %}</h2>
 
 	<ul>
 		{% for board in boards %}
@@ -8,32 +13,31 @@
 				<a href="?/{{ config.board_path|sprintf(board.uri) }}{{ config.file_index }}">{{ config.board_abbreviation|sprintf(board.uri) }}</a>
 					 - 
 				{{ board.title|e }}
+				<small>
 				{% if board.subtitle %}
-					<small>&mdash;
+					&mdash;
 						{% if config.allow_subtitle_html %}
 							{{ board.subtitle }}
 						{% else %}
 							{{ board.subtitle|e }}
 						{% endif %}
-					</small>
 				{% endif %}
 				{% if mod|hasPermission(config.mod.manageboards) %}
-					 <a href="?/edit/{{ board.uri }}"><small>[{% trans 'edit' %}]</small></a>
+					 <a href="?/edit/{{ board.uri }}">[{% trans 'edit' %}]</a>
 				{% endif %}
 				{% if mod|hasPermission(config.mod.edit_pages) %}
-					 <a href="?/edit_pages/{{ board.uri }}"><small>[{% trans 'pages' %}]</small></a>
+					 <a href="?/edit_pages/{{ board.uri }}">[{% trans 'pages' %}]</a>
 				{% endif %}
+				</small>
 			</li>
 		{% endfor %}
 
 		{% if mod|hasPermission(config.mod.newboard) %}
-			<li style="margin-top:15px"><a href="?/new-board"><strong>{% trans 'Create new board' %}</strong></a></li>
+			<li style="margin-top:15px;font-weight:bold"><a href="?/new-board">{% trans 'Create new board' %}</a></li>
 		{% endif %}
 	</ul>
-</fieldset>
-
-<fieldset>
-	<legend>{% trans 'Messages' %}</legend>
+	
+	<h2>{% trans 'Messages' %}</h2>
 	<ul>
 		{% if mod|hasPermission(config.mod.noticeboard) %}
 			{% if noticeboard|length > 0 %}
@@ -67,44 +71,53 @@
 			<li><a href="?/noticeboard">{% trans 'View all noticeboard entries' %}</a></li>
 		{% endif %}
 		<li><a href="?/edit_news">{% trans 'News' %}</a></li>
-		<li>
+		<li{% if unread_pms > 0 %} style="font-weight: bold"{% endif %}>
 			<a href="?/inbox">
-				{% trans 'PM inbox' %}
-				{% if unread_pms > 0 %}<strong>{%endif %} ({{ unread_pms }} unread){% if unread_pms > 0 %}</strong>{%endif %}
+				{% trans 'PM inbox' %} 
+				({% if unread_pms > 0 %}{{ unread_pms }}{% else %}0{% endif %} unread)
 			</a>
 		</li>
+		<li><a href="?/outbox">PM outbox</a></li>
 	</ul>
-</fieldset>
-
-<fieldset>
-	<legend>{% trans 'Administration' %}</legend>
+	
+	<h2>{% trans 'Administration' %}</h2>
 
 	<ul>
 		{% if mod|hasPermission(config.mod.reports) %}
-			<li>
-				{% if reports > 0 %}<strong>{% endif %}
+			<li{% if reports > 0 %} style="font-weight: bold"{% endif %}>
 					<a href="?/reports">{% trans 'Report queue' %} ({{ reports }})</a>
-				{% if reports > 0 %}</strong>{% endif %}
+			</li>
+		{% endif %}
+		{% if mod|hasPermission(config.mod.file_approval) %}
+			<li{% if file_approvals > 0 %} style="font-weight: bold"{% endif %}>
+				<a href="?/file_approval">{% trans 'File approval' %} ({{ file_approvals|default(0) }})</a>
 			</li>
 		{% endif %}
 		{% if mod|hasPermission(config.mod.view_banlist) %}
 			<li><a href="?/bans">{% trans 'Ban list' %}</a></li>
 		{% endif %}
 		{% if config.ban_appeals and mod|hasPermission(config.mod.view_ban_appeals) %}
-			{% if appeals > 0 %}<strong>{% endif %}
-				<li><a href="?/ban-appeals">{% trans 'Ban appeals' %}</a></li>
-			{% if appeals > 0 %}</strong>{% endif %}
+				<li{% if appeals > 0 %} style="font-weight: bold"{% endif %}><a href="?/ban-appeals">{% trans 'Ban appeals' %}</a></li>
+		{% endif %}
+		{% if mod|hasPermission(config.mod.trash) %}
+			<li><a href="?/trash">{% trans 'Trash' %}</a></li>
 		{% endif %}
 		{% if mod|hasPermission(config.mod.manageusers) %}
-			<li><a href="?/users">{% trans 'Manage users' %}</a></li>
+			<li><a href="?/users">{% trans 'Manage mod accounts' %}</a></li>
 		{% elseif mod|hasPermission(config.mod.change_password) %}
 			<li><a href="?/users/{{ mod.id }}">{% trans 'Change password' %}</a></li>
+		{% endif %}
+		{% if mod|hasPermission(config.mod.manage_account_passkeys) %}
+			<li><a href="?/accounts">Manage user accounts</a></li>
 		{% endif %}
 		{% if mod|hasPermission(config.mod.themes) %}
 			<li><a href="?/themes">{% trans 'Manage themes' %}</a></li>
 		{% endif %}
 		{% if mod|hasPermission(config.mod.modlog) %}
 			<li><a href="?/log">{% trans 'Moderation log' %}</a></li>
+		{% endif %}
+		{% if mod|hasPermission(config.mod.modlog) %}
+			<li><a href="?/userlog">User log</a></li>
 		{% endif %}
 		{% if mod|hasPermission(config.mod.edit_pages) %}
 			<li><a href="?/edit_pages">{% trans 'Global static pages' %}</a></li>
@@ -120,35 +133,35 @@
 		{% endif %}
 
 	</ul>
-</fieldset>
-
 {% if mod|hasPermission(config.mod.search) %}
-	<fieldset>
-		<legend>{% trans 'Search' %}</legend>
+		<h2>{% trans 'Search' %}</h2>
 
 		<ul>
 			<li>
 				{% include 'mod/search_form.html' %}
 			</li>
+			<li> 
+  <select onchange="location = this.value;">
+    <option value="">-- Presets --</option>
+    <option value="?/search/log/%22a_note_for%22">Note history</option>
+    <option value="?/search/log/%22a_telegram_for%22">Telegram history</option>
+    <option value="?/search/log/%22sticked thread%22">Sticky history</option>
+  </select></li>
 		</ul>
-	</fieldset>
-{%  endif %}
+{% endif %}
 
 {% if config.mod.dashboard_links and config.mod.dashboard_links|length %}
-	<fieldset>
-		<legend>{% trans 'Other' %}</legend>
+		<h2>{% trans 'Other' %}</h2>
 
 		<ul>
 			{% for label,link in config.mod.dashboard_links %}
 				<li><a href="{{ link }}">{{ label }}</a></li>
 			{% endfor %}
 		</ul>
-	</fieldset>
 {% endif %}
 
 {% if config.debug %}
-	<fieldset>
-		<legend>{% trans 'Debug' %}</legend>
+		<h2>{% trans 'Debug' %}</h2>
 		<ul>
 			<li><a href="?/debug/antispam">{% trans 'Anti-spam' %}</a></li>
 			<li><a href="?/debug/recent">{% trans 'Recent posts' %}</a></li>
@@ -156,12 +169,10 @@
 				<li><a href="?/debug/sql">{% trans 'SQL' %}</a></li>
 			{% endif %}
 		</ul>
-	</fieldset>
 {% endif %}
 
 {% if newer_release %}
-	<fieldset>
-		<legend>Update</legend>
+		<h2>Update</h2>
 		<ul>
 			<li>
 				A newer version of vichan
@@ -169,13 +180,11 @@
 				See <a href="https://vichan.info">https://vichan.info/</a> for upgrade instructions.
 			</li>
 		</ul>
-	</fieldset>
 {% endif %}
 
-<fieldset>
-	<legend>{% trans 'User account' %}</legend>
+	<h2>{% trans 'User account' %}</h2>
 
 	<ul>
 		<li><a href="?/logout/{{ logout_token }}">{% trans 'Logout' %}</a></li>
 	</ul>
-</fieldset>
+</div>

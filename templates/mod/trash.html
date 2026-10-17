@@ -1,0 +1,45 @@
+{% for entry in trash %}
+<form action="" method="post" style="margin: 10px 0">
+	<input type="hidden" name="token" value="{{ token }}">
+	<input type="hidden" name="trash_id" value="{{ entry.id }}">
+	<table style="margin: 5px 0">
+		<tr>
+			<th>{% trans 'Board' %}</th>
+			<td>{{ config.board_abbreviation|sprintf(entry.board) }}</td>
+		</tr>
+		<tr>
+			<th>{% trans 'Deleted' %}</th>
+			<td>{{ entry.deleted_at|date(config.post_date) }}</td>
+		</tr>
+		<tr>
+			<th>{% trans 'Moderator' %}</th>
+			<td>
+				{% if entry.mod_username %}
+					{{ entry.mod_username|e }}
+				{% else %}
+					<em>{% trans 'unknown' %}</em>
+				{% endif %}
+			</td>
+		</tr>
+		<tr>
+			<th>{% trans 'Action' %}</th>
+			<td>
+				{% if mod|hasPermission(config.mod.trash, entry.board) %}
+					<input type="submit" name="restore" value="Restore">
+					<input type="submit" name="delete" value="Delete permanently">
+				{% endif %}
+			</td>
+		</tr>
+	</table>
+
+	{% if entry.post %}
+		<div style="margin-top: 10px;">
+			{{ entry.post.build(true) }}
+		</div>
+	{% endif %}
+</form>
+<hr>
+{% else %}
+<p class="unimportant" style="text-align: center">({% trans 'No recently deleted posts.' %})</p>
+{% endfor %}
+

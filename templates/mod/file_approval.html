@@ -1,0 +1,105 @@
+<script src="{{ config.root }}js/mod/file-approval.js?v{{ config.resource_version }}" defer></script>
+<style>
+	.file-approval-controls {
+		margin: 1em 0;
+	}
+
+	.file-approval-container {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	.file-approval-item {
+		border: 1px solid #888;
+		margin: 10px;
+		padding: 8px;
+		width: 255px;
+		position: relative;
+	}
+
+	.file-thumbnail img,
+	.file-thumbnail video {
+		display: block;
+		max-width: 100%;
+		max-height: 300px;
+		margin: auto;
+	}
+
+	.file-info {
+		margin-bottom: 42px;
+		overflow-wrap: anywhere;
+	}
+
+	.file-info ul {
+		margin-top: 0;
+	}
+
+	.file-actions {
+		position: absolute;
+		bottom: 8px;
+		left: 8px;
+		right: 8px;
+	}
+
+	.file-actions .reject-button {
+		float: right;
+	}
+
+	.file-approval-error {
+		color: #d00;
+	}
+</style>
+<span id="updater"><a href="#" id="update_thread" style="padding-left:10px">[Update]</a> (<input type="checkbox" id="auto_update_status" checked=""> Auto) <span id="update_secs"></span></span>
+<div class="file-approval-container">
+	{% for hash, duplicates in files %}
+	<div class="file-approval-item">
+		<div class="file-thumbnail">
+			{% if duplicates[0].extension in config.video_ext %}
+				<video src="{{ duplicates[0].img_src }}" loop controls>
+					{% trans 'Your browser does not support HTML5 video.' %}
+				</video>
+			{% else %}
+				<a href="{{ duplicates[0].img_src }}" target="_blank" rel="noopener">
+					<img src="{{ duplicates[0].thumb_src }}" alt="{% trans 'Pending media preview' %}">
+				</a>
+			{% endif %}
+		</div>
+
+		<div class="file-info">
+			<p>
+				<a href="{{ duplicates[0].img_src }}" target="_blank" rel="noopener">
+					{% trans 'Extension:' %} {{ duplicates[0].extension|e }}
+				</a>
+			</p>
+			<p hidden>Hash: {{ hash|e }}</p>
+			{% trans 'Posts:' %}
+			<ul>
+				{% for file in duplicates %}
+				<li>
+					{% if file.threadid %}
+						<a href="?/{{ file.board|e }}/{{ config.dir.res }}{{ file.threadid }}.html#{{ file.postid }}">
+							/{{ file.board|e }}/{{ config.dir.res }}{{ file.threadid }}#{{ file.postid }}
+						</a>
+					{% else %}
+						<a href="?/{{ file.board|e }}/{{ config.dir.res }}{{ file.postid }}.html">
+							/{{ file.board|e }}/{{ config.dir.res }}{{ file.postid }}
+						</a>
+					{% endif %}
+				</li>
+				{% endfor %}
+			</ul>
+		</div>
+
+		<div class="file-actions">
+			<a class="approve-button" data-file-action href="?/{{ secure_link('approve-file/' ~ hash) }}">
+				{{ config.mod.link_approvefile }}
+			</a>
+			<a class="reject-button" data-file-action
+				data-confirm="{% trans 'Reject this media and issue a 15-minute site-wide ban to its poster(s)?' %}"
+				href="?/{{ secure_link('reject-file/' ~ hash) }}">
+				{{ config.mod.link_rejectfile }}
+			</a>
+		</div>
+	</div>
+	{% endfor %}
+</div>

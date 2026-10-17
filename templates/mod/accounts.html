@@ -1,0 +1,46 @@
+<div class="ban">
+	<h2>{% trans 'Manage account passkeys' %}</h2>
+
+	{% if created_account %}
+		<p>Give these credentials to the user now. The password will not be shown again.</p>
+		<table>
+			<tr><th>User ID</th><td>{{ created_account.id }}</td></tr>
+			<tr><th>Password</th><td><code>{{ created_account.password|e }}</code></td></tr>
+		</table>
+		<p><a href="?/accounts">{% trans 'Back to accounts' %}</a></p>
+	{% endif %}
+
+	{% if accounts is defined %}
+		<form action="?/accounts/new" method="post">
+			<input type="hidden" name="token" value="{{ create_token|e }}">
+			<input type="submit" value="{% trans 'Create account passkey' %}">
+		</form>
+
+		{% if accounts %}
+			<h3>Existing accounts</h3>
+			<table>
+				<tr><th>User ID</th><th>Action</th></tr>
+				{% for account_id in accounts %}
+					<tr>
+						<td>{{ account_id }}</td>
+						<td>
+							<form action="?/accounts/delete/{{ account_id }}" method="post" style="display: inline">
+								<input type="hidden" name="token" value="{{ delete_tokens[loop.index0]|e }}">
+								<input type="submit" value="{% trans 'Delete' %}" onclick="return confirm('Delete this account permanently?');">
+							</form>
+						</td>
+					</tr>
+				{% endfor %}
+			</table>
+		{% else %}
+			<p>No accounts have been created.</p>
+		{% endif %}
+	{% else %}
+		<p>Generate a new account ID and password?</p>
+		<form action="?/accounts/new" method="post">
+			<input type="hidden" name="token" value="{{ create_token|e }}">
+			<input type="submit" value="{% trans 'Create account passkey' %}">
+			<a href="?/accounts">{% trans 'Cancel' %}</a>
+		</form>
+	{% endif %}
+</div>
