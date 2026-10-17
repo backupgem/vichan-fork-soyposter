@@ -44,11 +44,10 @@
 					{{ board.subtitle|e }}
 				{% endif %}
 			{% endif %}
+			<p><a href="{{ config.root }}{% if mod %}{{ config.file_mod }}?/{% endif %}{{ board.dir }}{{ config.catalog_link }}">{% trans %}Catalog{% endtrans %}</a></p>
 			{% if mod %}<p><a href="?/">{% trans %}Return to dashboard{% endtrans %}</a></p>{% endif %}
 		</div>
 	</header>
-
-	{% include 'attention_bar.html' %}
 
 	{{ config.ad.top }}
 
@@ -101,6 +100,10 @@
 	{{ config.ad.bottom }}
 
 	{% include 'footer.html' %}
+	<div class="bottombar mobileonly">
+	<a href="{{ config.root }}{% if mod %}{{ config.file_mod }}?/{% endif %}{{ board.dir }}index.html">Index</a>
+	<a href="{{ config.root }}{% if mod %}{{ config.file_mod }}?/{% endif %}{{ board.dir }}{{ config.catalog_link }}">{% trans %}Catalog{% endtrans %}</a>
+	</div>
 	<script type="text/javascript">{% verbatim %}
 		ready();
 	{% endverbatim %}</script>

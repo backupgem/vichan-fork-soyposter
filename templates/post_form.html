@@ -1,3 +1,6 @@
+<style>.desktoponly,.mobileonly {display: none}
+@media (max-width: 450px) {.mobileonly {display: revert}}
+@media (min-width: 451px){.desktoponly{display: revert}}</style>
 <form name="post" onsubmit="return doPost(this);" enctype="multipart/form-data" action="{{ config.post_url }}" method="post">
 {% if id %}<input type="hidden" name="thread" value="{{ id }}">{% endif %}
 <input type="hidden" name="board" value="{{ board.uri }}">
@@ -40,7 +43,8 @@
 		</tr>{% endif %}
 		{% if not (config.field_disable_subject or (id and config.field_disable_reply_subject)) or (mod and post.mod|hasPermission(config.mod.bypass_field_disable, board.uri)) %}<tr>
 			<th>
-				{% trans %}Subject{% endtrans %}
+				<span class="desktoponly">{% trans %}Subject{% endtrans %}</span>
+				<span class="mobileonly">Title</span>
 			</th>
 			<td>
 				<input style="float:left;" type="text" name="subject" size="25" maxlength="100" autocomplete="off">
@@ -50,7 +54,8 @@
 		{% endif %}
 		<tr>
 			<th>
-				{% trans %}Comment{% endtrans %}
+				<span class="desktoponly">{% trans %}Comment{% endtrans %}</span>
+				<span class="mobileonly">Body</span>
 			</th>
 			<td>
 				<textarea name="body" id="body" rows="5" cols="35"></textarea>
@@ -188,12 +193,27 @@
 					<label for="raw">{% trans %}Raw HTML{% endtrans %}</label><br>
 					<input title="{% trans %}Raw HTML{% endtrans %}" type="checkbox" name="raw" id="raw">
 				</div>{% endif %}
+				<div class="center" title="Marks your file as approved. Instant approval reveals your janitor position.">
+					<label for="mod_approve">Approve</label><br>
+					<input type="checkbox" name="mod_approve" id="mod_approve">
+				</div>
+			</td>
+		</tr>
+		{% endif %}
+		{% if mod and post.mod|hasPermission(config.mod.rawhtml, board.uri) %}
+		<tr>
+			<th>Mod</th>
+			<td>
+			<label>Flag 
+			<input type="text" minlength="2" maxlength="2" size="2" name="modcustomflag"> <small>(2 chars, uppercase)</small>
+			</label>
 			</td>
 		</tr>
 		{% endif %}
 		{% if not config.field_disable_password or (mod and post.mod|hasPermission(config.mod.bypass_field_disable, board.uri)) %}<tr>
 			<th>
-				{% trans %}Password{% endtrans %}
+				<span class="desktoponly">{% trans %}Password{% endtrans %}</span>
+				<span class="mobileonly">Pass</span>
 			</th>
 			<td>
 				<input type="text" name="password" value="" size="12" maxlength="18" autocomplete="off">
@@ -207,6 +227,13 @@
 			<td>
 				<input type="text" name="simple_spam" value="" size="12" maxlength="18" autocomplete="off">
 			</td>
+		</tr>{% endif %}
+		{% if config.blotterlines %}<tr>
+		<td colspan="2"><ul style="padding: 0;padding-left: 1em;margin: 0;font-size: smaller;">
+		{% for line in config.blotterlines %}
+		<li>{{ line }}</li>
+		{% endfor %}</ul>
+		</td>
 		</tr>{% endif %}
 	</table>
 </form>

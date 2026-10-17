@@ -1,0 +1,37 @@
+<div class="ban" style="overflow: auto">
+<h2>User account</h2>
+{% if logged_out %}
+<div style="background: darkgreen; color: white; text-align: center">You have been logged out.</div>
+{% endif %}
+{% if error %}
+<div style="background: darkred; color: white; text-align: center">{{ error|e }}</div>
+{% endif %}
+<div style="float: left; width: 50%; box-sizing: border-box">
+<p>User accounts improve your 'poster experience.<br>Using an account grants you the following benefits:</p>
+<ul>
+<li>Instant media approval</li>
+<!-- <li>Synchronize (You)s (own posts) between browsers</li> -->
+</ul>
+</div>
+<div style="float: left; width: 50%; box-sizing: border-box">
+<form action="account.php" method="post">
+<table>
+	<tr>
+		<th><label for="user_id">User ID</label></th>
+		<td><input type="text" id="user_id" name="user_id" min="1" required></td>
+	</tr>
+	<tr>
+		<th><label for="password">Password</label></th>
+		<td><input type="password" id="password" name="password" autocomplete="current-password" required></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>
+			<input type="hidden" name="token" value="{{ token|e }}">
+			<input type="submit" value="Login">
+		</td>
+	</tr>
+</table>
+</form>
+</div>
+</div>

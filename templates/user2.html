@@ -1,0 +1,9 @@
+<div class="ban" style="overflow: auto">
+<h2>User account</h2>
+<p>You are logged in as user {{ user_id }}.</p>
+<form action="account.php" method="post">
+	<input type="hidden" name="logout" value="1">
+	<input type="hidden" name="token" value="{{ token|e }}">
+	<input type="submit" value="Log out">
+</form>
+</div>
