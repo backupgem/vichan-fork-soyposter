@@ -1,0 +1,94 @@
+<style>
+.desktop-style {
+th, td {
+  padding: 1px 4px;
+}
+td:nth-of-type(3) {
+  max-width: 550px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-wrap: break-word;
+}
+}
+.mobile-style {
+table {
+  display: block;
+  padding: 2px;
+}
+tr:has(th) {
+  display: none;
+}
+tbody {
+  display: contents;
+}
+tr {
+  display: block;
+  padding: 3px 2px;
+  box-sizing: border-box;
+}
+tr:not(:last-child) {
+  border-bottom: 1px solid #d4d4d4;
+}
+td {
+  display: inline;
+}
+td:nth-of-type(1)::after {
+  content: ", ";
+}
+td:nth-of-type(2)::after {
+  content: ":";
+}
+td:nth-of-type(3) {
+  display: block;
+}
+#showmore td {
+  display: block;
+  font-size: 15px;
+}
+#showmore td a {
+  text-decoration: none;
+}
+#showmore td::after {
+  content: "";
+}
+}
+</style><div class="ban">
+	{% if hot_threads|length == 0 %}
+		<p style="text-align:center" class="unimportant">
+			(No replies found in the selected time period.)
+		</p>
+	{% else %}
+		<table style="width: 100%">
+				<tr style="background: var(--box-header-color); font-size: 15px; ">
+					<th>Replies</th>
+					<th>Board</th>
+					<th>Subject</th>
+				</tr>
+			{% for thread in hot_threads %}
+				<tr {% if loop.index > 10 %}style="display:none"{% endif %}>
+					<td nowrap>{{ thread.replies}} {{ thread.replies > 1 ? 'replies' : 'reply' }}</td></td>
+					<td nowrap>/{{ thread.board_uri }}/</td>
+					<td><a href="{{ thread.link }}">
+						{% if thread.subject %}
+							{{ thread.subject }}
+						{% else %}
+							<em>no subject</em>
+						{% endif %}
+					</a></td>
+				</tr>
+				{% if loop.index == 10 %}
+					<tr id="showmore"><td style="text-align: center" colspan="3">
+					<a href="javascript:showcollapsed();">Show all</a>
+					</td></tr>
+				{% endif %}
+			{% endfor %}
+		</table>
+	{% endif %}
+</div>
+<script>
+function showcollapsed() {
+	$('tr[style="display:none"]').fadeIn(400);
+	$('#showmore').hide();
+}
+</script>
