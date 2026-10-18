@@ -636,11 +636,14 @@ if (isset($_POST['delete'])) {
 		// $post['accept_hash'] = hash('sha256', $_SERVER['HTTP_ACCEPT'] . $config['header_salt']);
 		$post['ua_hash'] = hash('sha256', $_SERVER['HTTP_USER_AGENT'] . $config['header_salt']);
 		$post['accept_language_hash'] = hash('sha256', $_SERVER['HTTP_ACCEPT_LANGUAGE'] . $config['header_salt']);
-		if (!isset($_SERVER['HTTP_CF_IPCOUNTRY'])) {
-			error("Could not determine your country.");
-		} else {
-			$post['cf_ipcountry'] = $_SERVER['HTTP_CF_IPCOUNTRY'];
+		if (($config['free_hosting'] ?? null) === false) {
+			if (!isset($_SERVER['HTTP_CF_IPCOUNTRY'])) {
+				error("Could not determine your country.");
+			} else {
+				$post['cf_ipcountry'] = $_SERVER['HTTP_CF_IPCOUNTRY'];
+			}
 		}
+		
 		if (
 			isset($_SERVER['HTTP_SEC_CH_UA_PLATFORM']) &&
 			isset($_SERVER['HTTP_SEC_CH_UA_MOBILE']) &&
@@ -727,11 +730,14 @@ if (isset($_POST['delete'])) {
 			error($config['error']['bot']);
 
 		// Check the referrer
-		if ($config['referer_match'] !== false &&
-			(!isset($_SERVER['HTTP_REFERER']) || !preg_match($config['referer_match'], rawurldecode($_SERVER['HTTP_REFERER']))))
-			error($_SERVER['HTTP_REFERER']);
-			error($config['error']['referer']);
-
+        // this isnt a good way to let people post on your free hosting using this fork
+        if (($config['free_hosting'] ?? null) === false) {
+		    if ($config['referer_match'] !== false &&
+			    (!isset($_SERVER['HTTP_REFERER']) || !preg_match($config['referer_match'], rawurldecode($_SERVER['HTTP_REFERER']))))
+			    error($_SERVER['HTTP_REFERER']);
+			    error($config['error']['referer']);
+        }
+        
 		checkDNSBL();
 
 
