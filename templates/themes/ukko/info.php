@@ -14,21 +14,21 @@
 		'title' => 'Board name',
 		'name' => 'title',
 		'type' => 'text',
-		'default' => 'Ukko'
+		'default' => 'Overboard'
 	);
 	$theme['config'][] = array(
 		'title' => 'Board URI',
 		'name' => 'uri',
 		'type' => 'text',
-		'default' => '*',
+		'default' => 'o',
 		'comment' => '(ukko for example)'
 	);	
-	$theme['config'][] = array(
+	/*$theme['config'][] = array(
 		'title' => 'Subtitle',
 		'name' => 'subtitle',
 		'type' => 'text',
 		'comment' => '(%s = thread limit. for example "%s freshly bumped threads")'
-	);		
+	);		*/
 	$theme['config'][] = array(
 		'title' => 'Excluded boards',
 		'name' => 'exclude',
