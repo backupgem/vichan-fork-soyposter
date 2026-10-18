@@ -1532,6 +1532,9 @@
 		'strategy_immediate',
 	];
 
+    // Set this to true if youre using free hosting.
+    $config['free_hosting'] = true;
+
 	// NOT RECOMMENDED: Instead of an all-"immediate" strategy, you can use an all-"build_on_load" one (used
 	// to be initialized using $config['smart_build']; ) for all pages instead of those to be build
 	// immediately. A rebuild done in this mode should remove all your static files
