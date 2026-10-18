@@ -1,0 +1,22 @@
+<div class="ban">
+<table style="width: 100%">
+    <tr style="background: var(--box-header-color); font-size: 15px; ">
+        <th>Board</th>
+
+        {% for variant in variants %}
+            <th>{{ variant[0] }}</th>
+        {% endfor %}
+    </tr>
+
+    {% for board in stats %}
+        <tr>
+            <td>/{{ board.uri }}/</td>
+
+            {% for count in board.counts %}
+                <td>{{ count.count }}</td>
+            {% endfor %}
+        </tr>
+    {% endfor %}
+
+</table>
+</div>
