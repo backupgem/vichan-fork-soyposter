@@ -140,6 +140,18 @@ CREATE TABLE IF NOT EXISTS `ip_notes` (
 
 -- --------------------------------------------------------
 
+CREATE TABLE IF NOT EXISTS `password_notes` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `password` varchar(255) NOT NULL,
+  `mod` int unsigned NOT NULL,
+  `time` int unsigned NOT NULL,
+  `body` mediumtext NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `password_time` (`password`, `time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
 --
 -- Table structure for table `modlogs`
 --
