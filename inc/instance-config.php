@@ -291,6 +291,7 @@ $config['mod']['view_filenames'] = ADMIN;
 $config['global_message'] = "RIP Summy and Kuzzy, you did well :) <br> <video src='/static/rip.m4a' loop='' controls='' height='50' style='position: static; pointer-events: inherit; display: inline;'>browser is cucked</video>";
 $config['global_message'] .= "<hr>MPA has been added";
 
+if (($config['free_hosting'] ?? null) === false) {
 $config['mod']['dashboard_links']['Statistics'] = '?/stats';
 $config['mod']['custom_pages']['/stats'] = function() {
 	global $config;
