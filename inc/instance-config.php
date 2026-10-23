@@ -35,7 +35,10 @@
 	$config['threads_per_page'] = 50;
 	$config['max_pages'] = 15;
 	$config['threads_preview'] = 6;
-	$config['thumb_method'] = 'gm+gifsicle';
+    if (($config['free_hosting'] ?? null) === true) {
+		$config['thumb_method'] = 'gd';
+	}
+	//$config['thumb_method'] = 'gm+gifsicle';
 	$config['gnu_md5'] = '1';
 
  // An alternative function for generating image filenames, instead of the default UNIX timestamp.
